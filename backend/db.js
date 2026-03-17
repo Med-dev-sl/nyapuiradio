@@ -1,5 +1,6 @@
 const sqlite3 = require('sqlite3');
 const { open } = require('sqlite');
+const { Pool } = require('pg');
 const path = require('path');
 const crypto = require('crypto');
 
@@ -7,191 +8,135 @@ function hashPassword(password) {
   return crypto.createHash('sha256').update(password).digest('hex');
 }
 
-const dbPath = path.join(__dirname, 'database.sqlite');
+const isPostgres = !!process.env.DATABASE_URL;
+let dbInstance;
+let pgPool;
 
-async function createDatabase() {
-  const db = await open({
-    filename: dbPath,
-    driver: sqlite3.Database,
-  });
+async function getDb() {
+  if (dbInstance) return dbInstance;
+  
+  if (isPostgres) {
+    pgPool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false } 
+    });
+    
+    // Test connection
+    await pgPool.query('SELECT NOW()');
+    
+    dbInstance = { isPostgres: true };
+    await initializeSchema();
+    return dbInstance;
+  } else {
+    const dbPath = path.join(__dirname, 'database.sqlite');
+    dbInstance = await open({
+      filename: dbPath,
+      driver: sqlite3.Database,
+    });
+    await initializeSchema();
+    return dbInstance;
+  }
+}
 
-  // Assets Table
-  await db.exec(`
-    CREATE TABLE IF NOT EXISTS assets (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      asset_tag TEXT UNIQUE NOT NULL,
-      name TEXT NOT NULL,
-      category TEXT NOT NULL,
-      status TEXT NOT NULL,
-      purchase_date TEXT,
-      value REAL,
-      last_maintenance TEXT,
-      location TEXT,
-      notes TEXT,
-      image TEXT
-    );
-  `);
+async function initializeSchema() {
+  const runSql = async (sql) => {
+    if (isPostgres) {
+      await pgPool.query(sql);
+    } else {
+      await dbInstance.exec(sql);
+    }
+  };
 
-  // Ensure columns exist for existing assets table
-  try { await db.exec('ALTER TABLE assets ADD COLUMN image TEXT;'); } catch (e) {}
+  const idType = isPostgres ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT';
+  const textType = 'TEXT';
+  const realType = isPostgres ? 'DOUBLE PRECISION' : 'REAL';
+  const timestampType = isPostgres ? 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' : 'DATETIME DEFAULT CURRENT_TIMESTAMP';
 
-  // Stations Table
-  await db.exec(`
-    CREATE TABLE IF NOT EXISTS stations (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      frequency TEXT NOT NULL
-    );
-  `);
+  // Tables Initialization
+  await runSql(`CREATE TABLE IF NOT EXISTS assets (id ${idType}, asset_tag ${textType} UNIQUE NOT NULL, name ${textType} NOT NULL, category ${textType} NOT NULL, status ${textType} NOT NULL, purchase_date ${textType}, value ${realType}, last_maintenance ${textType}, location ${textType}, notes ${textType}, image ${textType});`);
+  await runSql(`CREATE TABLE IF NOT EXISTS stations (id ${idType}, name ${textType} NOT NULL, frequency ${textType} NOT NULL);`);
+  await runSql(`CREATE TABLE IF NOT EXISTS donors (id ${idType}, name ${textType} NOT NULL, email ${textType}, amount ${realType} NOT NULL, date ${textType} NOT NULL);`);
+  await runSql(`CREATE TABLE IF NOT EXISTS folders (id ${idType}, name ${textType} NOT NULL, parent_id INTEGER, created_at ${timestampType});`);
+  await runSql(`CREATE TABLE IF NOT EXISTS media (id ${idType}, name ${textType} NOT NULL, type ${textType} NOT NULL, size INTEGER, url ${textType} NOT NULL, folder_id INTEGER, upload_date ${textType}, created_at ${timestampType} ${isPostgres ? ', CONSTRAINT fk_folder FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE CASCADE' : ', FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE CASCADE'});`);
+  await runSql(`CREATE TABLE IF NOT EXISTS users (id ${idType}, username ${textType} UNIQUE NOT NULL, password_hash ${textType} NOT NULL, role ${textType} NOT NULL, full_name ${textType}, user_email ${textType}, bio ${textType}, profile_picture ${textType});`);
+  await runSql(`CREATE TABLE IF NOT EXISTS audit_logs (id ${idType}, user_id INTEGER, action ${textType} NOT NULL, details ${textType}, target_type ${textType}, target_id INTEGER, created_at ${timestampType} ${isPostgres ? ', CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users(id)' : ', FOREIGN KEY (user_id) REFERENCES users(id)'});`);
+  await runSql(`CREATE TABLE IF NOT EXISTS tasks (id ${idType}, creator_id INTEGER, title ${textType} NOT NULL, description ${textType}, category ${textType} NOT NULL, priority ${textType} DEFAULT 'Medium', status ${textType} DEFAULT 'Pending', due_date ${textType}, created_at ${timestampType} ${isPostgres ? ', CONSTRAINT fk_creator FOREIGN KEY (creator_id) REFERENCES users(id)' : ', FOREIGN KEY (creator_id) REFERENCES users(id)'});`);
+  await runSql(`CREATE TABLE IF NOT EXISTS partners (id ${idType}, name ${textType} NOT NULL, logo ${textType}, type ${textType}, contact_person ${textType}, email ${textType}, phone ${textType}, status ${textType} DEFAULT 'Active', agreement_date ${textType}, notes ${textType}, created_at ${timestampType});`);
+  await runSql(`CREATE TABLE IF NOT EXISTS social_posts (id ${idType}, user_id INTEGER, content ${textType} NOT NULL, image ${textType}, platforms ${textType}, status ${textType} DEFAULT 'Posted', created_at ${timestampType} ${isPostgres ? ', CONSTRAINT fk_social_user FOREIGN KEY (user_id) REFERENCES users(id)' : ', FOREIGN KEY (user_id) REFERENCES users(id)'});`);
 
-  // Donors Table
-  await db.exec(`
-    CREATE TABLE IF NOT EXISTS donors (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      email TEXT,
-      amount REAL NOT NULL,
-      date TEXT NOT NULL
-    );
-  `);
+  // Migration logic
+  const tryAddCol = async (table, col, type) => {
+    try {
+      if (isPostgres) {
+        const check = await pgPool.query(`SELECT column_name FROM information_schema.columns WHERE table_name='${table}' AND column_name='${col}'`);
+        if (check.rowCount === 0) await pgPool.query(`ALTER TABLE ${table} ADD COLUMN ${col} ${type}`);
+      } else {
+        await dbInstance.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${type}`);
+      }
+    } catch (e) {}
+  };
 
-  // Folders Table (Media Library)
-  await db.exec(`
-    CREATE TABLE IF NOT EXISTS folders (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      parent_id INTEGER,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
-
-  // Media Table
-  await db.exec(`
-    CREATE TABLE IF NOT EXISTS media (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      type TEXT NOT NULL, -- image, video, audio, document
-      size INTEGER,
-      url TEXT NOT NULL, -- base64 or path
-      folder_id INTEGER,
-      upload_date TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE CASCADE
-    );
-  `);
-
-  // Audit Logs Table
-  await db.exec(`
-    CREATE TABLE IF NOT EXISTS audit_logs (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER,
-      action TEXT NOT NULL,
-      details TEXT,
-      target_type TEXT,
-      target_id INTEGER,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users(id)
-    );
-  `);
-
-  // Tasks Table
-  await db.exec(`
-    CREATE TABLE IF NOT EXISTS tasks (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      creator_id INTEGER,
-      title TEXT NOT NULL,
-      description TEXT,
-      category TEXT NOT NULL, -- Daily, Weekly
-      priority TEXT DEFAULT 'Medium', -- Low, Medium, High
-      status TEXT DEFAULT 'Pending', -- Pending, In Progress, Completed
-      due_date TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (creator_id) REFERENCES users(id)
-    );
-  `);
-
-  // Partners Table
-  await db.exec(`
-    CREATE TABLE IF NOT EXISTS partners (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      logo TEXT, -- base64
-      type TEXT, -- NGO, Corporate, Government, Media
-      contact_person TEXT,
-      email TEXT,
-      phone TEXT,
-      status TEXT DEFAULT 'Active', -- Active, Inactive, Pending
-      agreement_date TEXT,
-      notes TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
-
-  // Social Posts Table
-  await db.exec(`
-    CREATE TABLE IF NOT EXISTS social_posts (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER,
-      content TEXT NOT NULL,
-      image TEXT, -- base64
-      platforms TEXT, -- JSON string of platforms
-      status TEXT DEFAULT 'Posted',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users(id)
-    );
-  `);
-
-  // Users Table
-  await db.exec(`
-    CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      username TEXT UNIQUE NOT NULL,
-      password_hash TEXT NOT NULL,
-      role TEXT NOT NULL,
-      full_name TEXT,
-      user_email TEXT,
-      bio TEXT,
-      profile_picture TEXT
-    );
-  `);
-
-  // Ensure columns exist for existing databases
-  try { await db.exec('ALTER TABLE users ADD COLUMN full_name TEXT;'); } catch (e) {}
-  try { await db.exec('ALTER TABLE users ADD COLUMN user_email TEXT;'); } catch (e) {}
-  try { await db.exec('ALTER TABLE users ADD COLUMN bio TEXT;'); } catch (e) {}
-  try { await db.exec('ALTER TABLE users ADD COLUMN profile_picture TEXT;'); } catch (e) {}
-  try { await db.exec('ALTER TABLE media ADD COLUMN upload_date TEXT;'); } catch (e) {}
+  await tryAddCol('assets', 'image', 'TEXT');
+  await tryAddCol('users', 'full_name', 'TEXT');
+  await tryAddCol('users', 'user_email', 'TEXT');
+  await tryAddCol('users', 'bio', 'TEXT');
+  await tryAddCol('users', 'profile_picture', 'TEXT');
+  await tryAddCol('media', 'upload_date', 'TEXT');
 
   const defaultUser = process.env.SUPERUSER_NAME || 'admin';
   const defaultPassword = process.env.SUPERUSER_PASSWORD || 'Nyapui@123';
   const passwordHash = hashPassword(defaultPassword);
 
-  await db.run(
-    'INSERT OR IGNORE INTO users (username, password_hash, role) VALUES (?, ?, ?)',
-    [defaultUser, passwordHash, 'superuser']
-  );
-
-  return db;
+  if (isPostgres) {
+    await pgPool.query('INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3) ON CONFLICT (username) DO NOTHING', [defaultUser, passwordHash, 'superuser']);
+  } else {
+    await dbInstance.run('INSERT OR IGNORE INTO users (username, password_hash, role) VALUES (?, ?, ?)', [defaultUser, passwordHash, 'superuser']);
+  }
 }
 
-let dbInstance;
+// Helper to translate SQL
+function translateSql(sql) {
+  if (!isPostgres) return sql;
+  let count = 0;
+  return sql.replace(/\?/g, () => `$${++count}`);
+}
 
-const dbPromise = (async () => {
-  dbInstance = await createDatabase();
-  return dbInstance;
-})();
+const dbPromise = getDb();
 
 module.exports = {
   all: async (sql, params = []) => {
-    const db = await dbPromise;
-    return db.all(sql, params);
+    await dbPromise;
+    if (isPostgres) {
+      const res = await pgPool.query(translateSql(sql), params);
+      return res.rows;
+    } else {
+      return dbInstance.all(sql, params);
+    }
   },
   get: async (sql, params = []) => {
-    const db = await dbPromise;
-    return db.get(sql, params);
+    await dbPromise;
+    if (isPostgres) {
+      const res = await pgPool.query(translateSql(sql), params);
+      return res.rows[0];
+    } else {
+      return dbInstance.get(sql, params);
+    }
   },
   run: async (sql, params = []) => {
-    const db = await dbPromise;
-    return db.run(sql, params);
+    await dbPromise;
+    if (isPostgres) {
+      let finalSql = translateSql(sql);
+      const isInsert = sql.trim().toUpperCase().startsWith('INSERT');
+      if (isInsert && !finalSql.toUpperCase().includes('RETURNING')) {
+        finalSql += ' RETURNING id';
+      }
+      const res = await pgPool.query(finalSql, params);
+      return { 
+        lastID: isInsert && res.rows[0] ? res.rows[0].id : null, 
+        changes: res.rowCount 
+      };
+    } else {
+      return dbInstance.run(sql, params);
+    }
   },
 };
