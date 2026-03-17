@@ -10,7 +10,6 @@ import API_URL from './config';
 function App() {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [modal, setModal] = useState({ 
     open: false, 
     type: 'info', 
@@ -28,7 +27,6 @@ function App() {
       // Prevent the mini-infobar from appearing on mobile
       e.preventDefault();
       // Stash the event so it can be triggered later.
-      setDeferredPrompt(e);
       
       // Delay prompt for maximum engagement
       setTimeout(() => {

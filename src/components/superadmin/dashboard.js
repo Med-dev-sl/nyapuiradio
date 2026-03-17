@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import Sidebar from './sidebar';
 import Modal from '../common/Modal';
 import Loading from './loading';
@@ -21,7 +21,6 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
     onClose: () => {}
   });
 
-  const [form, setForm] = useState({ name: '', frequency: '' });
   const [donorForm, setDonorForm] = useState({ name: '', email: '', amount: '' });
   const [assetForm, setAssetForm] = useState({
     name: '',
@@ -35,7 +34,6 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
   });
   const [assetSearch, setAssetSearch] = useState('');
   const [assetStatusFilter, setAssetStatusFilter] = useState('All');
-  const [assetSortBy, setAssetSortBy] = useState('tag');
   const [isEditingAsset, setIsEditingAsset] = useState(false);
   const [currentAssetId, setCurrentAssetId] = useState(null);
   const [profileForm, setProfileForm] = useState({
@@ -106,7 +104,7 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
     });
   };
 
-  const fetchStations = async () => {
+  const fetchStations = useCallback(async () => {
     setLoading(true);
     try {
       const response = await fetch(`${API_URL}/api/spots`, {
@@ -134,9 +132,9 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token, onLogout]);
 
-  const fetchDonors = async () => {
+  const fetchDonors = useCallback(async () => {
     setLoading(true);
     try {
       const response = await fetch(`${API_URL}/api/donors`, {
@@ -164,9 +162,9 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token, onLogout]);
 
-  const fetchAssets = async () => {
+  const fetchAssets = useCallback(async () => {
     setLoading(true);
     try {
       const response = await fetch(`${API_URL}/api/assets`, {
@@ -181,9 +179,9 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
 
-  const fetchAssetStats = async () => {
+  const fetchAssetStats = useCallback(async () => {
     try {
       const response = await fetch(`${API_URL}/api/assets/stats`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -193,7 +191,7 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
         setAssetStats(data);
       }
     } catch (err) { console.error(err); }
-  };
+  }, [token]);
 
   useEffect(() => {
     fetchStations();
@@ -202,7 +200,7 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
     fetchAssetStats();
     fetchFolders();
     fetchMediaFiles();
-  }, []);
+  }, [fetchStations, fetchDonors, fetchAssets, fetchAssetStats, fetchFolders, fetchMediaFiles]);
 
   useEffect(() => {
     if (activeSection === 'media') {
@@ -226,71 +224,71 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
     if (activeSection === 'social') {
       fetchSocialHistory();
     }
-  }, [activeSection, currentFolderId]);
+  }, [activeSection, currentFolderId, fetchFolders, fetchMediaFiles, fetchMediaStats, fetchAuditLogs, fetchTasks, fetchUsers, fetchPartners, fetchAnalyticsSummary, fetchSocialHistory]);
 
-  const fetchSocialHistory = async () => {
+  const fetchSocialHistory = useCallback(async () => {
     try {
       const resp = await fetch(`${API_URL}/api/social/posts`, { headers: { Authorization: `Bearer ${token}` } });
       if (resp.ok) setSocialPosts(await resp.json());
     } catch (err) { console.error(err); }
-  };
+  }, [token]);
 
-  const fetchAnalyticsSummary = async () => {
+  const fetchAnalyticsSummary = useCallback(async () => {
     try {
       const resp = await fetch(`${API_URL}/api/analytics/summary`, { headers: { Authorization: `Bearer ${token}` } });
       if (resp.ok) setAnalyticsSummary(await resp.json());
     } catch (err) { console.error(err); }
-  };
+  }, [token]);
 
-  const fetchPartners = async () => {
+  const fetchPartners = useCallback(async () => {
     try {
       const resp = await fetch(`${API_URL}/api/partners`, { headers: { Authorization: `Bearer ${token}` } });
       if (resp.ok) setPartners(await resp.json());
     } catch (err) { console.error(err); }
-  };
+  }, [token]);
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       const resp = await fetch(`${API_URL}/api/users`, { headers: { Authorization: `Bearer ${token}` } });
       if (resp.ok) setSystemUsers(await resp.json());
     } catch (err) { console.error(err); }
-  };
+  }, [token]);
 
-  const fetchTasks = async () => {
+  const fetchTasks = useCallback(async () => {
     try {
       const resp = await fetch(`${API_URL}/api/tasks`, { headers: { Authorization: `Bearer ${token}` } });
       if (resp.ok) setTasks(await resp.json());
     } catch (err) { console.error(err); }
-  };
+  }, [token]);
 
-  const fetchAuditLogs = async () => {
+  const fetchAuditLogs = useCallback(async () => {
     try {
       const resp = await fetch(`${API_URL}/api/audit-logs`, { headers: { Authorization: `Bearer ${token}` } });
       if (resp.ok) setAuditLogs(await resp.json());
     } catch (err) { console.error(err); }
-  };
+  }, [token]);
 
-  const fetchFolders = async () => {
+  const fetchFolders = useCallback(async () => {
     try {
       const resp = await fetch(`${API_URL}/api/media/folders`, { headers: { Authorization: `Bearer ${token}` } });
       if (resp.ok) setFolders(await resp.json());
     } catch (err) { console.error(err); }
-  };
+  }, [token]);
 
-  const fetchMediaStats = async () => {
+  const fetchMediaStats = useCallback(async () => {
     try {
       const resp = await fetch(`${API_URL}/api/media/stats`, { headers: { Authorization: `Bearer ${token}` } });
       if (resp.ok) setMediaStats(await resp.json());
     } catch (err) { console.error(err); }
-  };
+  }, [token]);
 
-  const fetchMediaFiles = async () => {
+  const fetchMediaFiles = useCallback(async () => {
     try {
       const url = `/api/media/files${currentFolderId ? `?folderId=${currentFolderId}` : ''}`;
       const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       if (resp.ok) setMediaFiles(await resp.json());
     } catch (err) { console.error(err); }
-  };
+  }, [token, currentFolderId]);
 
 
 
@@ -319,41 +317,6 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
       document.documentElement.classList.toggle('dark', next);
       return next;
     });
-  };
-
-  const addStation = async (e) => {
-    e.preventDefault();
-    if (!form.name.trim() || !form.frequency.trim()) {
-      showError('Please provide both a station name and its broadcast frequency.');
-      return;
-    }
-    setSubmitting(true);
-
-    try {
-      const response = await fetch(`${API_URL}/api/spots`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(form),
-      });
-
-      if (response.status === 401) {
-        onLogout?.();
-        return;
-      }
-
-      if (!response.ok) throw new Error(`Could not add station (HTTP ${response.status})`);
-      
-      setForm({ name: '', frequency: '' });
-      showSuccess(`${form.name} has been successfully added to your station list.`, 'Station Added');
-      await fetchStations();
-    } catch (err) {
-      showError(err.message || 'An unexpected error occurred while adding the station.');
-    } finally {
-      setSubmitting(false);
-    }
   };
 
   const addDonor = async (e) => {
@@ -1118,10 +1081,8 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
     }
   };
 
-  const totalStations = stations.length;
   const liveListeners = 0; 
   const totalDonations = donors.reduce((sum, d) => sum + d.amount, 0); 
-  const volunteers = 0; 
 
   return (
     <div className="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 min-h-screen">
