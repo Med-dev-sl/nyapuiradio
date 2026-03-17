@@ -6,7 +6,7 @@ import API_URL from '../../config';
 
 const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
   const [activeSection, setActiveSection] = useState('dashboard');
-  const [stations, setStations] = useState([]);
+  const [, setStations] = useState([]);
   const [donors, setDonors] = useState([]);
   const [assets, setAssets] = useState([]);
   const [assetStats, setAssetStats] = useState({ total: 0, operational: 0, maintenance: 0, faulty: 0, totalValue: 0 });
@@ -193,38 +193,6 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
     } catch (err) { console.error(err); }
   }, [token]);
 
-  useEffect(() => {
-    fetchStations();
-    fetchDonors();
-    fetchAssets();
-    fetchAssetStats();
-    fetchFolders();
-    fetchMediaFiles();
-  }, [fetchStations, fetchDonors, fetchAssets, fetchAssetStats, fetchFolders, fetchMediaFiles]);
-
-  useEffect(() => {
-    if (activeSection === 'media') {
-      fetchFolders();
-      fetchMediaFiles();
-      fetchMediaStats();
-    }
-    if (activeSection === 'audit') {
-      fetchAuditLogs();
-    }
-    if (activeSection === 'tasks') {
-      fetchTasks();
-      fetchUsers();
-    }
-    if (activeSection === 'partners') {
-      fetchPartners();
-    }
-    if (activeSection === 'analytics') {
-      fetchAnalyticsSummary();
-    }
-    if (activeSection === 'social') {
-      fetchSocialHistory();
-    }
-  }, [activeSection, currentFolderId, fetchFolders, fetchMediaFiles, fetchMediaStats, fetchAuditLogs, fetchTasks, fetchUsers, fetchPartners, fetchAnalyticsSummary, fetchSocialHistory]);
 
   const fetchSocialHistory = useCallback(async () => {
     try {
@@ -290,6 +258,38 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
     } catch (err) { console.error(err); }
   }, [token, currentFolderId]);
 
+  useEffect(() => {
+    fetchStations();
+    fetchDonors();
+    fetchAssets();
+    fetchAssetStats();
+    fetchFolders();
+    fetchMediaFiles();
+  }, [fetchStations, fetchDonors, fetchAssets, fetchAssetStats, fetchFolders, fetchMediaFiles]);
+
+  useEffect(() => {
+    if (activeSection === 'media') {
+      fetchFolders();
+      fetchMediaFiles();
+      fetchMediaStats();
+    }
+    if (activeSection === 'audit') {
+      fetchAuditLogs();
+    }
+    if (activeSection === 'tasks') {
+      fetchTasks();
+      fetchUsers();
+    }
+    if (activeSection === 'partners') {
+      fetchPartners();
+    }
+    if (activeSection === 'analytics') {
+      fetchAnalyticsSummary();
+    }
+    if (activeSection === 'social') {
+      fetchSocialHistory();
+    }
+  }, [activeSection, currentFolderId, fetchFolders, fetchMediaFiles, fetchMediaStats, fetchAuditLogs, fetchTasks, fetchUsers, fetchPartners, fetchAnalyticsSummary, fetchSocialHistory]);
 
 
   useEffect(() => {

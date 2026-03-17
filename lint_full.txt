@@ -1,0 +1,14 @@
+﻿C:\Users\Princess Magbie\nyapuiradio\src\components\superadmin\dashboard.js: line 9, col 10, Warning - 'stations' is assigned a value but never used. (no-unused-vars)
+C:\Users\Princess Magbie\nyapuiradio\src\components\superadmin\dashboard.js: line 203, col 65, Warning - 'fetchFolders' was used before it was defined. (no-use-before-define)
+C:\Users\Princess Magbie\nyapuiradio\src\components\superadmin\dashboard.js: line 203, col 79, Warning - 'fetchMediaFiles' was used before it was defined. (no-use-before-define)
+C:\Users\Princess Magbie\nyapuiradio\src\components\superadmin\dashboard.js: line 227, col 39, Warning - 'fetchFolders' was used before it was defined. (no-use-before-define)
+C:\Users\Princess Magbie\nyapuiradio\src\components\superadmin\dashboard.js: line 227, col 53, Warning - 'fetchMediaFiles' was used before it was defined. (no-use-before-define)
+C:\Users\Princess Magbie\nyapuiradio\src\components\superadmin\dashboard.js: line 227, col 70, Warning - 'fetchMediaStats' was used before it was defined. (no-use-before-define)
+C:\Users\Princess Magbie\nyapuiradio\src\components\superadmin\dashboard.js: line 227, col 87, Warning - 'fetchAuditLogs' was used before it was defined. (no-use-before-define)
+C:\Users\Princess Magbie\nyapuiradio\src\components\superadmin\dashboard.js: line 227, col 103, Warning - 'fetchTasks' was used before it was defined. (no-use-before-define)
+C:\Users\Princess Magbie\nyapuiradio\src\components\superadmin\dashboard.js: line 227, col 115, Warning - 'fetchUsers' was used before it was defined. (no-use-before-define)
+C:\Users\Princess Magbie\nyapuiradio\src\components\superadmin\dashboard.js: line 227, col 127, Warning - 'fetchPartners' was used before it was defined. (no-use-before-define)
+C:\Users\Princess Magbie\nyapuiradio\src\components\superadmin\dashboard.js: line 227, col 142, Warning - 'fetchAnalyticsSummary' was used before it was defined. (no-use-before-define)
+C:\Users\Princess Magbie\nyapuiradio\src\components\superadmin\dashboard.js: line 227, col 165, Warning - 'fetchSocialHistory' was used before it was defined. (no-use-before-define)
+
+12 problems
