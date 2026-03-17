@@ -252,7 +252,7 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
 
   const fetchMediaFiles = useCallback(async () => {
     try {
-      const url = `/api/media/files${currentFolderId ? `?folderId=${currentFolderId}` : ''}`;
+      const url = `${API_URL}/api/media/files${currentFolderId ? `?folderId=${currentFolderId}` : ''}`;
       const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       if (resp.ok) setMediaFiles(await resp.json());
     } catch (err) { console.error(err); }
@@ -328,7 +328,7 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
     setSubmitting(true);
 
     try {
-      const url = isEditingDonor ? `/api/donors/${currentDonorId}` : '/api/donors';
+      const url = isEditingDonor ? `${API_URL}/api/donors/${currentDonorId}` : `${API_URL}/api/donors`;
       const method = isEditingDonor ? 'PUT' : 'POST';
       
       const response = await fetch(url, {
@@ -367,7 +367,7 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
     }
     setSubmitting(true);
     try {
-      const url = isEditingTask ? `/api/tasks/${currentTaskId}` : '/api/tasks';
+      const url = isEditingTask ? `${API_URL}/api/tasks/${currentTaskId}` : `${API_URL}/api/tasks`;
       const method = isEditingTask ? 'PUT' : 'POST';
       const resp = await fetch(url, {
         method,
@@ -387,7 +387,7 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
   const handleToggleTaskStatus = async (task) => {
     const newStatus = task.status === 'Completed' ? 'In Progress' : 'Completed';
     try {
-      const resp = await fetch(`/api/tasks/${task.id}/status`, {
+      const resp = await fetch(`${API_URL}/api/tasks/${task.id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ status: newStatus })
@@ -401,7 +401,7 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
   const handleTaskDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this task?')) return;
     try {
-      const resp = await fetch(`/api/tasks/${id}`, {
+      const resp = await fetch(`${API_URL}/api/tasks/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -492,7 +492,7 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
     }
     setSubmitting(true);
     try {
-      const url = isEditingPartner ? `/api/partners/${currentPartnerId}` : '/api/partners';
+      const url = isEditingPartner ? `${API_URL}/api/partners/${currentPartnerId}` : `${API_URL}/api/partners`;
       const method = isEditingPartner ? 'PUT' : 'POST';
       const resp = await fetch(url, {
         method,
@@ -512,7 +512,7 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
   const handlePartnerDelete = async (id) => {
     if (!window.confirm('Dissolve this partnership record? This cannot be undone.')) return;
     try {
-      const resp = await fetch(`/api/partners/${id}`, {
+      const resp = await fetch(`${API_URL}/api/partners/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -727,7 +727,7 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
   const deleteDonor = async (id) => {
     if (!window.confirm('Are you sure you want to remove this donor? This will permanently delete their contribution record.')) return;
     try {
-      const resp = await fetch(`/api/donors/${id}`, {
+      const resp = await fetch(`${API_URL}/api/donors/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -742,7 +742,7 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
     e.preventDefault();
     setSubmitting(true);
     try {
-      const url = isEditingAsset ? `/api/assets/${currentAssetId}` : '/api/assets';
+      const url = isEditingAsset ? `${API_URL}/api/assets/${currentAssetId}` : `${API_URL}/api/assets`;
       const method = isEditingAsset ? 'PUT' : 'POST';
 
       const response = await fetch(url, {
@@ -782,7 +782,7 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
     if (!window.confirm('Are you sure you want to delete this asset? This action cannot be undone.')) return;
     
     try {
-      const response = await fetch(`/api/assets/${id}`, {
+      const response = await fetch(`${API_URL}/api/assets/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -1008,7 +1008,7 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
   const deleteMediaFile = async (id) => {
     if (!window.confirm('Delete this file?')) return;
     try {
-      const resp = await fetch(`/api/media/files/${id}`, {
+      const resp = await fetch(`${API_URL}/api/media/files/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -1022,7 +1022,7 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
   const deleteMediaFolder = async (id) => {
     if (!window.confirm('Delete this folder and all its contents?')) return;
     try {
-      const resp = await fetch(`/api/media/folders/${id}`, {
+      const resp = await fetch(`${API_URL}/api/media/folders/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });
