@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import Sidebar from './sidebar';
 import Modal from '../common/Modal';
 import Loading from './loading';
+import API_URL from '../../config';
 
 const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
   const [activeSection, setActiveSection] = useState('dashboard');
@@ -108,7 +109,7 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
   const fetchStations = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/spots', {
+      const response = await fetch(`${API_URL}/api/spots`, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -138,7 +139,7 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
   const fetchDonors = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/donors', {
+      const response = await fetch(`${API_URL}/api/donors`, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -168,7 +169,7 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
   const fetchAssets = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/assets', {
+      const response = await fetch(`${API_URL}/api/assets`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (!response.ok) throw new Error('Failed to fetch assets');
@@ -184,7 +185,7 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
 
   const fetchAssetStats = async () => {
     try {
-      const response = await fetch('/api/assets/stats', {
+      const response = await fetch(`${API_URL}/api/assets/stats`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (response.ok) {
@@ -229,56 +230,56 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
 
   const fetchSocialHistory = async () => {
     try {
-      const resp = await fetch('/api/social/posts', { headers: { Authorization: `Bearer ${token}` } });
+      const resp = await fetch(`${API_URL}/api/social/posts`, { headers: { Authorization: `Bearer ${token}` } });
       if (resp.ok) setSocialPosts(await resp.json());
     } catch (err) { console.error(err); }
   };
 
   const fetchAnalyticsSummary = async () => {
     try {
-      const resp = await fetch('/api/analytics/summary', { headers: { Authorization: `Bearer ${token}` } });
+      const resp = await fetch(`${API_URL}/api/analytics/summary`, { headers: { Authorization: `Bearer ${token}` } });
       if (resp.ok) setAnalyticsSummary(await resp.json());
     } catch (err) { console.error(err); }
   };
 
   const fetchPartners = async () => {
     try {
-      const resp = await fetch('/api/partners', { headers: { Authorization: `Bearer ${token}` } });
+      const resp = await fetch(`${API_URL}/api/partners`, { headers: { Authorization: `Bearer ${token}` } });
       if (resp.ok) setPartners(await resp.json());
     } catch (err) { console.error(err); }
   };
 
   const fetchUsers = async () => {
     try {
-      const resp = await fetch('/api/users', { headers: { Authorization: `Bearer ${token}` } });
+      const resp = await fetch(`${API_URL}/api/users`, { headers: { Authorization: `Bearer ${token}` } });
       if (resp.ok) setSystemUsers(await resp.json());
     } catch (err) { console.error(err); }
   };
 
   const fetchTasks = async () => {
     try {
-      const resp = await fetch('/api/tasks', { headers: { Authorization: `Bearer ${token}` } });
+      const resp = await fetch(`${API_URL}/api/tasks`, { headers: { Authorization: `Bearer ${token}` } });
       if (resp.ok) setTasks(await resp.json());
     } catch (err) { console.error(err); }
   };
 
   const fetchAuditLogs = async () => {
     try {
-      const resp = await fetch('/api/audit-logs', { headers: { Authorization: `Bearer ${token}` } });
+      const resp = await fetch(`${API_URL}/api/audit-logs`, { headers: { Authorization: `Bearer ${token}` } });
       if (resp.ok) setAuditLogs(await resp.json());
     } catch (err) { console.error(err); }
   };
 
   const fetchFolders = async () => {
     try {
-      const resp = await fetch('/api/media/folders', { headers: { Authorization: `Bearer ${token}` } });
+      const resp = await fetch(`${API_URL}/api/media/folders`, { headers: { Authorization: `Bearer ${token}` } });
       if (resp.ok) setFolders(await resp.json());
     } catch (err) { console.error(err); }
   };
 
   const fetchMediaStats = async () => {
     try {
-      const resp = await fetch('/api/media/stats', { headers: { Authorization: `Bearer ${token}` } });
+      const resp = await fetch(`${API_URL}/api/media/stats`, { headers: { Authorization: `Bearer ${token}` } });
       if (resp.ok) setMediaStats(await resp.json());
     } catch (err) { console.error(err); }
   };
@@ -329,7 +330,7 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
     setSubmitting(true);
 
     try {
-      const response = await fetch('/api/spots', {
+      const response = await fetch(`${API_URL}/api/spots`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -744,7 +745,7 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
 
     setSubmitting(true);
     try {
-      const resp = await fetch('/api/social/post', {
+      const resp = await fetch(`${API_URL}/api/social/post`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(socialForm)
@@ -986,7 +987,7 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
     if (!newFolderName.trim()) return;
     setSubmitting(true);
     try {
-      const resp = await fetch('/api/media/folders', {
+      const resp = await fetch(`${API_URL}/api/media/folders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ name: newFolderName })
@@ -1022,7 +1023,7 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
           upload_date: mediaUploadDate
         };
 
-        const resp = await fetch('/api/media/upload', {
+        const resp = await fetch(`${API_URL}/api/media/upload`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify(payload)
@@ -1075,7 +1076,7 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
     setSubmitting(true);
 
     try {
-      const response = await fetch('/api/auth/me', {
+      const response = await fetch(`${API_URL}/api/auth/me`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

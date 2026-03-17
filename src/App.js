@@ -5,6 +5,7 @@ import Login from './components/superadmin/login';
 import Loading from './components/superadmin/loading';
 import Modal from './components/common/Modal';
 import Logo from './components/common/Logo';
+import API_URL from './config';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -148,7 +149,7 @@ function App() {
       const token = localStorage.getItem('authToken');
       if (token) {
         try {
-          const response = await fetch('/api/auth/me', {
+          const response = await fetch(`${API_URL}/api/auth/me`, {
             headers: { Authorization: `Bearer ${token}` }
           });
           if (response.ok) {
