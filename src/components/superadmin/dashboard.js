@@ -1,0 +1,3017 @@
+import React, { useEffect, useState } from 'react';
+import Sidebar from './sidebar';
+import Modal from '../common/Modal';
+import Loading from './loading';
+
+const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
+  const [activeSection, setActiveSection] = useState('dashboard');
+  const [stations, setStations] = useState([]);
+  const [donors, setDonors] = useState([]);
+  const [assets, setAssets] = useState([]);
+  const [assetStats, setAssetStats] = useState({ total: 0, operational: 0, maintenance: 0, faulty: 0, totalValue: 0 });
+  const [loading, setLoading] = useState(true);
+  const [token] = useState(localStorage.getItem('authToken'));
+  
+  const [modal, setModal] = useState({ 
+    open: false, 
+    type: 'info', 
+    title: '', 
+    message: '',
+    onClose: () => {}
+  });
+
+  const [form, setForm] = useState({ name: '', frequency: '' });
+  const [donorForm, setDonorForm] = useState({ name: '', email: '', amount: '' });
+  const [assetForm, setAssetForm] = useState({
+    name: '',
+    category: 'Electronics',
+    status: 'Operational',
+    purchase_date: new Date().toISOString().split('T')[0],
+    value: '',
+    location: '',
+    notes: '',
+    image: ''
+  });
+  const [assetSearch, setAssetSearch] = useState('');
+  const [assetStatusFilter, setAssetStatusFilter] = useState('All');
+  const [assetSortBy, setAssetSortBy] = useState('tag');
+  const [isEditingAsset, setIsEditingAsset] = useState(false);
+  const [currentAssetId, setCurrentAssetId] = useState(null);
+  const [profileForm, setProfileForm] = useState({
+    full_name: user?.full_name || '',
+    user_email: user?.user_email || '',
+    bio: user?.bio || '',
+    profile_picture: user?.profile_picture || ''
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [isDark, setIsDark] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+
+  // Media Library States
+  const [folders, setFolders] = useState([]);
+  const [mediaFiles, setMediaFiles] = useState([]);
+  const [currentFolderId, setCurrentFolderId] = useState(null);
+  const [mediaSearch, setMediaSearch] = useState('');
+  const [mediaTypeFilter, setMediaTypeFilter] = useState('All');
+  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [viewerFile, setViewerFile] = useState(null);
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [mediaStats, setMediaStats] = useState({ image: {count:0}, video: {count:0}, audio: {count:0}, document: {count:0} });
+  const [mediaUploadDate, setMediaUploadDate] = useState(new Date().toISOString().split('T')[0]);
+  const [isEditingDonor, setIsEditingDonor] = useState(false);
+  const [currentDonorId, setCurrentDonorId] = useState(null);
+  const [donorSearch, setDonorSearch] = useState('');
+  const [donorSortBy, setDonorSortBy] = useState('date'); // 'date' or 'amount'
+  const [donorFilter, setDonorFilter] = useState('All'); // 'All', 'Recent', 'Large'
+  const [tasks, setTasks] = useState([]);
+  const [taskForm, setTaskForm] = useState({ title: '', description: '', category: 'Daily', priority: 'Medium', status: 'Pending', due_date: new Date().toISOString().split('T')[0] });
+  const [taskSearch, setTaskSearch] = useState('');
+  const [taskFilter, setTaskFilter] = useState('All'); // All, Daily, Weekly
+  const [taskSortBy, setTaskSortBy] = useState('due_date'); // due_date, priority
+  const [isEditingTask, setIsEditingTask] = useState(false);
+  const [currentTaskId, setCurrentTaskId] = useState(null);
+  const [systemUsers, setSystemUsers] = useState([]);
+  const [taskUserFilter, setTaskUserFilter] = useState('All');
+  const [partners, setPartners] = useState([]);
+  const [partnerForm, setPartnerForm] = useState({ name: '', logo: '', type: 'NGO', contact_person: '', email: '', phone: '', status: 'Active', agreement_date: new Date().toISOString().split('T')[0], notes: '' });
+  const [partnerSearch, setPartnerSearch] = useState('');
+  const [partnerFilter, setPartnerFilter] = useState('All'); // All, NGO, Corporate, Government, Media
+  const [partnerSortBy, setPartnerSortBy] = useState('name'); // name, date
+  const [isEditingPartner, setIsEditingPartner] = useState(false);
+  const [currentPartnerId, setCurrentPartnerId] = useState(null);
+  const [analyticsSummary, setAnalyticsSummary] = useState({ donors: {}, partners: {}, assets: {}, tasks: {}, media: {} });
+  const [socialPosts, setSocialPosts] = useState([]);
+  const [socialForm, setSocialForm] = useState({ content: '', image: '', platforms: ['Facebook', 'Instagram'] });
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const showError = (msg) => {
+    setModal({
+      open: true,
+      type: 'error',
+      title: 'Action Error',
+      message: msg,
+      onClose: () => setModal(prev => ({ ...prev, open: false }))
+    });
+  };
+
+  const showSuccess = (msg, title = 'Success') => {
+    setModal({
+      open: true,
+      type: 'success',
+      title: title,
+      message: msg,
+      onClose: () => setModal(prev => ({ ...prev, open: false }))
+    });
+  };
+
+  const fetchStations = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/spots', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.status === 401) {
+        onLogout?.();
+        return;
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Failed to fetch stations (HTTP ${response.status})`);
+      }
+
+      const data = await response.json();
+      setStations(data);
+    } catch (err) {
+      showError(err.message || 'Failed to load stations data.');
+      setStations([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchDonors = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/donors', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.status === 401) {
+        onLogout?.();
+        return;
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Failed to fetch donors (HTTP ${response.status})`);
+      }
+
+      const data = await response.json();
+      setDonors(data);
+    } catch (err) {
+      showError(err.message || 'Failed to load donors data.');
+      setDonors([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchAssets = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/assets', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!response.ok) throw new Error('Failed to fetch assets');
+      const data = await response.json();
+      setAssets(data);
+    } catch (err) {
+      showError(err.message);
+      setAssets([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchAssetStats = async () => {
+    try {
+      const response = await fetch('/api/assets/stats', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setAssetStats(data);
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  useEffect(() => {
+    fetchStations();
+    fetchDonors();
+    fetchAssets();
+    fetchAssetStats();
+    fetchFolders();
+    fetchMediaFiles();
+  }, []);
+
+  useEffect(() => {
+    if (activeSection === 'media') {
+      fetchFolders();
+      fetchMediaFiles();
+      fetchMediaStats();
+    }
+    if (activeSection === 'audit') {
+      fetchAuditLogs();
+    }
+    if (activeSection === 'tasks') {
+      fetchTasks();
+      fetchUsers();
+    }
+    if (activeSection === 'partners') {
+      fetchPartners();
+    }
+    if (activeSection === 'analytics') {
+      fetchAnalyticsSummary();
+    }
+    if (activeSection === 'social') {
+      fetchSocialHistory();
+    }
+  }, [activeSection, currentFolderId]);
+
+  const fetchSocialHistory = async () => {
+    try {
+      const resp = await fetch('/api/social/posts', { headers: { Authorization: `Bearer ${token}` } });
+      if (resp.ok) setSocialPosts(await resp.json());
+    } catch (err) { console.error(err); }
+  };
+
+  const fetchAnalyticsSummary = async () => {
+    try {
+      const resp = await fetch('/api/analytics/summary', { headers: { Authorization: `Bearer ${token}` } });
+      if (resp.ok) setAnalyticsSummary(await resp.json());
+    } catch (err) { console.error(err); }
+  };
+
+  const fetchPartners = async () => {
+    try {
+      const resp = await fetch('/api/partners', { headers: { Authorization: `Bearer ${token}` } });
+      if (resp.ok) setPartners(await resp.json());
+    } catch (err) { console.error(err); }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const resp = await fetch('/api/users', { headers: { Authorization: `Bearer ${token}` } });
+      if (resp.ok) setSystemUsers(await resp.json());
+    } catch (err) { console.error(err); }
+  };
+
+  const fetchTasks = async () => {
+    try {
+      const resp = await fetch('/api/tasks', { headers: { Authorization: `Bearer ${token}` } });
+      if (resp.ok) setTasks(await resp.json());
+    } catch (err) { console.error(err); }
+  };
+
+  const fetchAuditLogs = async () => {
+    try {
+      const resp = await fetch('/api/audit-logs', { headers: { Authorization: `Bearer ${token}` } });
+      if (resp.ok) setAuditLogs(await resp.json());
+    } catch (err) { console.error(err); }
+  };
+
+  const fetchFolders = async () => {
+    try {
+      const resp = await fetch('/api/media/folders', { headers: { Authorization: `Bearer ${token}` } });
+      if (resp.ok) setFolders(await resp.json());
+    } catch (err) { console.error(err); }
+  };
+
+  const fetchMediaStats = async () => {
+    try {
+      const resp = await fetch('/api/media/stats', { headers: { Authorization: `Bearer ${token}` } });
+      if (resp.ok) setMediaStats(await resp.json());
+    } catch (err) { console.error(err); }
+  };
+
+  const fetchMediaFiles = async () => {
+    try {
+      const url = `/api/media/files${currentFolderId ? `?folderId=${currentFolderId}` : ''}`;
+      const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      if (resp.ok) setMediaFiles(await resp.json());
+    } catch (err) { console.error(err); }
+  };
+
+
+
+  useEffect(() => {
+    if (isEditing) {
+      setProfileForm({
+        full_name: user?.full_name || '',
+        user_email: user?.user_email || '',
+        bio: user?.bio || '',
+        profile_picture: user?.profile_picture || ''
+      });
+    }
+  }, [isEditing, user]);
+
+  useEffect(() => {
+    const stored = localStorage.getItem('theme');
+    const theme = stored ? stored === 'dark' : true;
+    setIsDark(theme);
+    document.documentElement.classList.toggle('dark', theme);
+  }, []);
+
+  const toggleTheme = () => {
+    setIsDark((prev) => {
+      const next = !prev;
+      localStorage.setItem('theme', next ? 'dark' : 'light');
+      document.documentElement.classList.toggle('dark', next);
+      return next;
+    });
+  };
+
+  const addStation = async (e) => {
+    e.preventDefault();
+    if (!form.name.trim() || !form.frequency.trim()) {
+      showError('Please provide both a station name and its broadcast frequency.');
+      return;
+    }
+    setSubmitting(true);
+
+    try {
+      const response = await fetch('/api/spots', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(form),
+      });
+
+      if (response.status === 401) {
+        onLogout?.();
+        return;
+      }
+
+      if (!response.ok) throw new Error(`Could not add station (HTTP ${response.status})`);
+      
+      setForm({ name: '', frequency: '' });
+      showSuccess(`${form.name} has been successfully added to your station list.`, 'Station Added');
+      await fetchStations();
+    } catch (err) {
+      showError(err.message || 'An unexpected error occurred while adding the station.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const addDonor = async (e) => {
+    e.preventDefault();
+    if (!donorForm.name.trim() || !donorForm.amount) {
+      showError('Please provide a name and donation amount.');
+      return;
+    }
+    setSubmitting(true);
+
+    try {
+      const url = isEditingDonor ? `/api/donors/${currentDonorId}` : '/api/donors';
+      const method = isEditingDonor ? 'PUT' : 'POST';
+      
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(donorForm),
+      });
+
+      if (response.status === 401) {
+        onLogout?.();
+        return;
+      }
+
+      if (!response.ok) throw new Error(`Could not ${isEditingDonor ? 'update' : 'add'} donor (HTTP ${response.status})`);
+      
+      setDonorForm({ name: '', email: '', amount: '' });
+      setIsEditingDonor(false);
+      setCurrentDonorId(null);
+      showSuccess(isEditingDonor ? `Donor details for ${donorForm.name} have been updated.` : `Thank you! ${donorForm.name}'s contribution has been recorded.`, isEditingDonor ? 'Donor Updated' : 'Contribution Recorded');
+      await fetchDonors();
+    } catch (err) {
+      showError(err.message || 'An error occurred while saving the donation.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleTaskSubmit = async (e) => {
+    e.preventDefault();
+    if (!taskForm.title.trim() || !taskForm.category) {
+      showError('Please provide a task title and category.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const url = isEditingTask ? `/api/tasks/${currentTaskId}` : '/api/tasks';
+      const method = isEditingTask ? 'PUT' : 'POST';
+      const resp = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(taskForm)
+      });
+      if (!resp.ok) throw new Error(`Failed to ${isEditingTask ? 'update' : 'save'} task`);
+      setTaskForm({ title: '', description: '', category: 'Daily', priority: 'Medium', status: 'Pending', due_date: new Date().toISOString().split('T')[0] });
+      setIsEditingTask(false);
+      setCurrentTaskId(null);
+      showSuccess(`Task "${taskForm.title}" has been saved.`, isEditingTask ? 'Task Updated' : 'Task Created');
+      fetchTasks();
+    } catch (err) { showError(err.message); }
+    finally { setSubmitting(false); }
+  };
+
+  const handleToggleTaskStatus = async (task) => {
+    const newStatus = task.status === 'Completed' ? 'In Progress' : 'Completed';
+    try {
+      const resp = await fetch(`/api/tasks/${task.id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status: newStatus })
+      });
+      if (resp.ok) {
+        setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: newStatus } : t));
+      }
+    } catch (err) { showError(err.message); }
+  };
+
+  const handleTaskDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this task?')) return;
+    try {
+      const resp = await fetch(`/api/tasks/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (resp.ok) {
+        showSuccess('Task eliminated.', 'Deleted');
+        fetchTasks();
+      }
+    } catch (err) { showError(err.message); }
+  };
+
+  const exportTasks = () => {
+    const printWindow = window.open('', '_blank');
+    const filteredTasks = tasks
+      .filter(t => t.title.toLowerCase().includes(taskSearch.toLowerCase()) || t.description?.toLowerCase().includes(taskSearch.toLowerCase()))
+      .filter(t => taskFilter === 'All' || t.category === taskFilter)
+      .filter(t => taskUserFilter === 'All' || t.creator_name === taskUserFilter)
+      .sort((a, b) => {
+        if (taskSortBy === 'due_date') return new Date(a.due_date) - new Date(b.due_date);
+        return 0;
+      });
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Nyapui Radio - Task Registry</title>
+          <style>
+            body { font-family: 'Inter', sans-serif; padding: 40px; color: #1e293b; }
+            .header { border-bottom: 4px solid #f97316; padding-bottom: 20px; margin-bottom: 40px; display: flex; align-items: center; gap: 20px; }
+            .logo { width: 60px; height: 60px; background: #f97316; border-radius: 12px; }
+            .title-group h1 { margin: 0; color: #0f172a; font-size: 28px; }
+            .title-group p { margin: 5px 0 0; color: #64748b; font-size: 14px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th { text-align: left; background: #f8fafc; padding: 12px; border: 1px solid #e2e8f0; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #64748b; }
+            td { padding: 12px; border: 1px solid #e2e8f0; font-size: 12px; }
+            .status { font-weight: bold; text-transform: uppercase; font-size: 10px; }
+            .footer { margin-top: 50px; font-size: 10px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 20px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="logo"></div>
+            <div class="title-group">
+              <h1>NYAPUI RADIO 88.6FM</h1>
+              <p>Official Task Coordination Registry</p>
+              <p>Generated on: ${new Date().toLocaleString()}</p>
+            </div>
+          </div>
+          <h2>Task Registry</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Assigned By</th>
+                <th>Category</th>
+                <th>Priority</th>
+                <th>Status</th>
+                <th>Due Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filteredTasks.map(t => `
+                <tr>
+                  <td style="font-weight: bold;">${t.title}</td>
+                  <td>${t.creator_name || 'System'}</td>
+                  <td>${t.category}</td>
+                  <td>${t.priority}</td>
+                  <td class="status">${t.status}</td>
+                  <td>${t.due_date || 'N/A'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <div class="footer">
+            <p>&copy; ${new Date().getFullYear()} Nyapui Radio. Sierra Leone. Activity Coordination System.</p>
+          </div>
+          <script>window.onload = () => { window.print(); window.close(); }</script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  const handlePartnerSubmit = async (e) => {
+    e.preventDefault();
+    if (!partnerForm.name.trim()) {
+      showError('Partner name is mandatory.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const url = isEditingPartner ? `/api/partners/${currentPartnerId}` : '/api/partners';
+      const method = isEditingPartner ? 'PUT' : 'POST';
+      const resp = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(partnerForm)
+      });
+      if (!resp.ok) throw new Error('Failed to synchronize partner data');
+      setPartnerForm({ name: '', logo: '', type: 'NGO', contact_person: '', email: '', phone: '', status: 'Active', agreement_date: new Date().toISOString().split('T')[0], notes: '' });
+      setIsEditingPartner(false);
+      setCurrentPartnerId(null);
+      showSuccess(`Strategic partnership with ${partnerForm.name} has been ${isEditingPartner ? 'updated' : 'formalized'}.`, 'Success');
+      fetchPartners();
+    } catch (err) { showError(err.message); }
+    finally { setSubmitting(false); }
+  };
+
+  const handlePartnerDelete = async (id) => {
+    if (!window.confirm('Dissolve this partnership record? This cannot be undone.')) return;
+    try {
+      const resp = await fetch(`/api/partners/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (resp.ok) {
+        showSuccess('Partner record removed from registry.', 'Partner Deleted');
+        fetchPartners();
+      }
+    } catch (err) { showError(err.message); }
+  };
+
+  const handlePartnerLogoUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 512 * 1024) {
+        showError('Logo exceeds size limit (512KB).');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => setPartnerForm(prev => ({ ...prev, logo: reader.result }));
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const exportPartnersReport = () => {
+    const printWindow = window.open('', '_blank');
+    const filtered = partners
+      .filter(p => (partnerFilter === 'All' || p.type === partnerFilter))
+      .filter(p => p.name.toLowerCase().includes(partnerSearch.toLowerCase()))
+      .sort((a, b) => {
+        if (partnerSortBy === 'name') return a.name.localeCompare(b.name);
+        return new Date(b.agreement_date) - new Date(a.agreement_date);
+      });
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Nyapui Radio - Partnership Report</title>
+          <style>
+            body { font-family: 'Inter', sans-serif; padding: 40px; color: #1e293b; }
+            .header { border-bottom: 4px solid #f97316; padding-bottom: 20px; margin-bottom: 40px; display: flex; align-items: center; gap: 20px; }
+            .logo-placeholder { width: 60px; height: 60px; background: #f97316; border-radius: 12px; }
+            .title-group h1 { margin: 0; color: #0f172a; font-size: 28px; }
+            .title-group p { margin: 5px 0 0; color: #64748b; font-size: 14px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th { text-align: left; background: #f8fafc; padding: 12px; border: 1px solid #e2e8f0; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #64748b; }
+            td { padding: 12px; border: 1px solid #e2e8f0; font-size: 11px; }
+            .badge { padding: 4px 8px; border-radius: 6px; font-weight: bold; font-size: 9px; text-transform: uppercase; }
+            .footer { margin-top: 50px; font-size: 10px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 20px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="logo-placeholder"></div>
+            <div class="title-group">
+              <h1>NYAPUI RADIO 88.6FM</h1>
+              <p>Official Strategic Partnership Report</p>
+              <p>Generated on: ${new Date().toLocaleString()}</p>
+            </div>
+          </div>
+          <h2>Active Partners</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Partner</th>
+                <th>Category</th>
+                <th>Contact</th>
+                <th>Status</th>
+                <th>Agreement Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filtered.map(p => `
+                <tr>
+                  <td style="font-weight: bold;">${p.name}</td>
+                  <td>${p.type}</td>
+                  <td>${p.contact_person || 'N/A'}<br/>${p.email || ''}</td>
+                  <td><span class="badge ${p.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-700'}">${p.status}</span></td>
+                  <td>${p.agreement_date || 'N/A'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <div class="footer">
+            <p>&copy; ${new Date().getFullYear()} Nyapui Radio. Sierra Leone. Organizational Development Unit.</p>
+          </div>
+          <script>window.onload = () => { window.print(); window.close(); }</script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  const exportOverallStats = () => {
+    const printWindow = window.open('', '_blank');
+    const s = analyticsSummary;
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Nyapui Radio - Performance Summary</title>
+          <style>
+            body { font-family: 'Inter', sans-serif; padding: 50px; color: #1e293b; line-height: 1.6; }
+            .header { border-bottom: 5px solid #f97316; padding-bottom: 30px; margin-bottom: 40px; display: flex; align-items: center; gap: 30px; }
+            .logo-placeholder { width: 80px; height: 80px; background: #f97316; border-radius: 16px; }
+            .station-info h1 { margin: 0; color: #0f172a; font-size: 32px; letter-spacing: -0.02em; }
+            .station-info p { margin: 5px 0 0; color: #64748b; font-size: 16px; font-weight: 500; }
+            .report-meta { margin-bottom: 40px; padding: 20px; bg-slate-50; border-radius: 12px; font-size: 12px; color: #64748b; border: 1px solid #e2e8f0; }
+            .grid { display: grid; grid-template-cols: 1fr 1fr; gap: 30px; margin-bottom: 40px; }
+            .stat-card { padding: 25px; border: 1px solid #e2e8f0; border-radius: 16px; background: #f8fafc; }
+            .stat-card h3 { margin: 0 0 15px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; color: #64748b; }
+            .stat-value { font-size: 28px; font-weight: 800; color: #0f172a; margin-bottom: 5px; }
+            .stat-sub { font-size: 12px; color: #94a3b8; }
+            .section-title { font-size: 18px; font-weight: 800; margin: 40px 0 20px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0; color: #0f172a; }
+            .footer { margin-top: 60px; padding-top: 30px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 11px; color: #94a3b8; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="logo-placeholder"></div>
+            <div class="station-info">
+              <h1>NYAPUI RADIO 88.6FM</h1>
+              <p>Institutional Performance & Analytics Report</p>
+            </div>
+          </div>
+          
+          <div class="report-meta">
+            <strong>Reference:</strong> NYA-STAT-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}<br/>
+            <strong>Generated By:</strong> ${user?.full_name || user?.username}<br/>
+            <strong>Timestamp:</strong> ${new Date().toLocaleString()}
+          </div>
+
+          <div class="section-title">Global KPIs</div>
+          <div class="grid">
+            <div class="stat-card">
+              <h3>Financial Footprint</h3>
+              <div class="stat-value">SLe ${s.donors?.totalAmount?.toLocaleString() || 0}</div>
+              <div class="stat-sub">Total Contributed via ${s.donors?.totalCount || 0} recorded donations</div>
+            </div>
+            <div class="stat-card">
+              <h3>Asset Valuation</h3>
+              <div class="stat-value">SLe ${s.assets?.totalValue?.toLocaleString() || 0}</div>
+              <div class="stat-sub">${s.assets?.operationalCount || 0} / ${s.assets?.totalCount || 0} Items are operational</div>
+            </div>
+            <div class="stat-card">
+              <h3>Institutional Partnerships</h3>
+              <div class="stat-value">${s.partners?.total || 0} Partners</div>
+              <div class="stat-sub">Spanning NGOs, Corporate and Gov agencies</div>
+            </div>
+            <div class="stat-card">
+              <h3>Operational Efficiency</h3>
+              <div class="stat-value">${s.tasks?.completionRate || 0}%</div>
+              <div class="stat-sub">${s.tasks?.completed || 0} of ${s.tasks?.total || 0} strategic tasks finalized</div>
+            </div>
+          </div>
+
+          <div class="section-title">Media Content Velocity</div>
+          <div class="stat-card" style="margin-bottom: 40px;">
+             <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                  <h3>Total Managed Media</h3>
+                  <div class="stat-value">${s.media?.totalFiles || 0} Files</div>
+                </div>
+                <div style="text-align: right; color: #64748b; font-size: 12px;">
+                  Managed via centralized digital archive
+                </div>
+             </div>
+          </div>
+
+          <div class="footer">
+            <p>Confidential Institutional Document. &copy; ${new Date().getFullYear()} Nyapui Radio. Sierra Leone.</p>
+            <p>Empowering Women and Youth through Strategic Communication.</p>
+          </div>
+          <script>window.onload = () => { window.print(); window.close(); }</script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  const toggleSocialPlatform = (p) => {
+    setSocialForm(prev => ({
+      ...prev,
+      platforms: prev.platforms.includes(p) 
+        ? prev.platforms.filter(x => x !== p) 
+        : [...prev.platforms, p]
+    }));
+  };
+
+  const handleSocialSubmit = async (e) => {
+    e.preventDefault();
+    if (!socialForm.content.trim()) return showError('Post content cannot be empty.');
+    if (socialForm.platforms.length === 0) return showError('Select at least one platform.');
+
+    setSubmitting(true);
+    try {
+      const resp = await fetch('/api/social/post', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(socialForm)
+      });
+      if (resp.ok) {
+        showSuccess(`Content synchronized across ${socialForm.platforms.join(', ')}.`, 'Broadcast Successful');
+        setSocialForm({ content: '', image: '', platforms: ['Facebook', 'Instagram'] });
+        fetchSocialHistory();
+      } else {
+        throw new Error('Global synchronization failed.');
+      }
+    } catch (err) { showError(err.message); }
+    finally { setSubmitting(false); }
+  };
+
+  const deleteDonor = async (id) => {
+    if (!window.confirm('Are you sure you want to remove this donor? This will permanently delete their contribution record.')) return;
+    try {
+      const resp = await fetch(`/api/donors/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (resp.ok) {
+        showSuccess('Donor record has been deleted.', 'Donor Removed');
+        await fetchDonors();
+      }
+    } catch (err) { showError(err.message); }
+  };
+
+  const addAsset = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      const url = isEditingAsset ? `/api/assets/${currentAssetId}` : '/api/assets';
+      const method = isEditingAsset ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(assetForm)
+      });
+
+      if (!response.ok) throw new Error(`Failed to ${isEditingAsset ? 'update' : 'record'} asset`);
+      
+      showSuccess(`Asset ${assetForm.name} has been successfully ${isEditingAsset ? 'updated' : 'registered'}.`, `Asset ${isEditingAsset ? 'Updated' : 'Registered'}`);
+      setAssetForm({
+        name: '',
+        category: 'Electronics',
+        status: 'Operational',
+        purchase_date: new Date().toISOString().split('T')[0],
+        value: '',
+        location: '',
+        notes: '',
+        image: ''
+      });
+      setIsEditingAsset(false);
+      setCurrentAssetId(null);
+      await fetchAssets();
+      await fetchAssetStats();
+    } catch (err) {
+      showError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const deleteAsset = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this asset? This action cannot be undone.')) return;
+    
+    try {
+      const response = await fetch(`/api/assets/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!response.ok) throw new Error('Failed to delete asset');
+      showSuccess('Asset has been permanently removed.', 'Asset Deleted');
+      await fetchAssets();
+      await fetchAssetStats();
+    } catch (err) {
+      showError(err.message);
+    }
+  };
+
+  const handleAssetImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 1024 * 1024) {
+        showError('Image is too large. Please select a file under 1MB.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAssetForm(prev => ({ ...prev, image: reader.result }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const exportAssets = () => {
+    const printWindow = window.open('', '_blank');
+    const filteredAssets = assets
+      .filter(a => (assetStatusFilter === 'All' || a.status === assetStatusFilter))
+      .filter(a => a.name.toLowerCase().includes(assetSearch.toLowerCase()) || a.asset_tag.toLowerCase().includes(assetSearch.toLowerCase()));
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Nyapui Radio - Asset Registry</title>
+          <style>
+            body { font-family: 'Inter', sans-serif; padding: 40px; color: #1e293b; }
+            .header { border-bottom: 4px solid #f97316; padding-bottom: 20px; margin-bottom: 40px; display: flex; align-items: center; gap: 20px; }
+            .logo { width: 60px; height: 60px; background: #f97316; border-radius: 12px; }
+            .title-group h1 { margin: 0; color: #0f172a; font-size: 28px; }
+            .title-group p { margin: 5px 0 0; color: #64748b; font-size: 14px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th { text-align: left; background: #f8fafc; padding: 12px; border: 1px solid #e2e8f0; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #64748b; }
+            td { padding: 12px; border: 1px solid #e2e8f0; font-size: 12px; }
+            .tag { font-weight: bold; color: #f97316; }
+            .status { font-weight: bold; font-size: 10px; text-transform: uppercase; }
+            .footer { margin-top: 50px; font-size: 10px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 20px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="logo"></div>
+            <div class="title-group">
+              <h1>NYAPUI RADIO 88.6FM</h1>
+              <p>Official Assets & Equipment Registry Report</p>
+              <p>Generated on: ${new Date().toLocaleString()}</p>
+            </div>
+          </div>
+          <h2>Asset Heading</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Asset Tag</th>
+                <th>Name</th>
+                <th>Category</th>
+                <th>Status</th>
+                <th>Purchase Date</th>
+                <th>Value (SLe)</th>
+                <th>Location</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filteredAssets.map(a => `
+                <tr>
+                  <td class="tag">${a.asset_tag}</td>
+                  <td>${a.name}</td>
+                  <td>${a.category}</td>
+                  <td class="status">${a.status}</td>
+                  <td>${a.purchase_date || 'N/A'}</td>
+                  <td>SLe ${a.value?.toLocaleString() || '0'}</td>
+                  <td>${a.location || 'N/A'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <div class="footer">
+            <p>&copy; ${new Date().getFullYear()} Nyapui Radio. Sierra Leone. Standard Asset Management System.</p>
+          </div>
+          <script>window.onload = () => { window.print(); window.close(); }</script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  const exportDonors = () => {
+    const printWindow = window.open('', '_blank');
+    const filteredDonors = donors
+      .filter(d => d.name.toLowerCase().includes(donorSearch.toLowerCase()) || d.email?.toLowerCase().includes(donorSearch.toLowerCase()))
+      .sort((a, b) => {
+        if (donorSortBy === 'date') return new Date(b.date) - new Date(a.date);
+        return b.amount - a.amount;
+      });
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Nyapui Radio - Donor Registry</title>
+          <style>
+            body { font-family: 'Inter', sans-serif; padding: 40px; color: #1e293b; }
+            .header { border-bottom: 4px solid #f97316; padding-bottom: 20px; margin-bottom: 40px; display: flex; align-items: center; gap: 20px; }
+            .logo { width: 60px; height: 60px; background: #f97316; border-radius: 12px; }
+            .title-group h1 { margin: 0; color: #0f172a; font-size: 28px; }
+            .title-group p { margin: 5px 0 0; color: #64748b; font-size: 14px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th { text-align: left; background: #f8fafc; padding: 12px; border: 1px solid #e2e8f0; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #64748b; }
+            td { padding: 12px; border: 1px solid #e2e8f0; font-size: 12px; }
+            .amount { font-weight: bold; color: #059669; }
+            .footer { margin-top: 50px; font-size: 10px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 20px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="logo"></div>
+            <div class="title-group">
+              <h1>NYAPUI RADIO 88.6FM</h1>
+              <p>Official Donors & Contributions Report</p>
+              <p>Generated on: ${new Date().toLocaleString()}</p>
+            </div>
+          </div>
+          <h2>Donors</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Donor Name</th>
+                <th>Email</th>
+                <th>Amount (SLe)</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filteredDonors.map(d => `
+                <tr>
+                  <td style="font-weight: bold;">${d.name}</td>
+                  <td>${d.email || 'N/A'}</td>
+                  <td class="amount">SLe ${d.amount?.toLocaleString()}</td>
+                  <td>${new Date(d.date).toLocaleDateString()}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <div class="footer">
+            <p>&copy; ${new Date().getFullYear()} Nyapui Radio. Sierra Leone. Station Funding Registry.</p>
+          </div>
+          <script>window.onload = () => { window.print(); window.close(); }</script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  const createMediaFolder = async () => {
+    if (!newFolderName.trim()) return;
+    setSubmitting(true);
+    try {
+      const resp = await fetch('/api/media/folders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ name: newFolderName })
+      });
+      if (resp.ok) {
+        showSuccess(`Folder "${newFolderName}" created.`, 'Success');
+        setNewFolderName('');
+        setIsCreatingFolder(false);
+        fetchFolders();
+      }
+    } catch (err) { showError(err.message); }
+    finally { setSubmitting(false); }
+  };
+
+  const handleMediaUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setSubmitting(true);
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const type = file.type.startsWith('image/') ? 'image' :
+                     file.type.startsWith('video/') ? 'video' :
+                     file.type.startsWith('audio/') ? 'audio' : 'document';
+        
+        const payload = {
+          name: file.name,
+          type,
+          size: file.size,
+          url: reader.result,
+          folder_id: currentFolderId,
+          upload_date: mediaUploadDate
+        };
+
+        const resp = await fetch('/api/media/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify(payload)
+        });
+
+        if (resp.ok) {
+          showSuccess(`${file.name} uploaded successfully.`, 'Media Uploaded');
+          fetchMediaFiles();
+          fetchMediaStats();
+        } else {
+          showError('Failed to upload media. Check file size.');
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (err) { showError(err.message); }
+    finally { setSubmitting(false); }
+  };
+
+  const deleteMediaFile = async (id) => {
+    if (!window.confirm('Delete this file?')) return;
+    try {
+      const resp = await fetch(`/api/media/files/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (resp.ok) {
+        showSuccess('File removed.', 'Deleted');
+        fetchMediaFiles();
+      }
+    } catch (err) { showError(err.message); }
+  };
+
+  const deleteMediaFolder = async (id) => {
+    if (!window.confirm('Delete this folder and all its contents?')) return;
+    try {
+      const resp = await fetch(`/api/media/folders/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (resp.ok) {
+        showSuccess('Folder removed.', 'Deleted');
+        if (currentFolderId === id) setCurrentFolderId(null);
+        fetchFolders();
+      }
+    } catch (err) { showError(err.message); }
+  };
+
+  const updateProfile = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+
+    try {
+      const response = await fetch('/api/auth/me', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(profileForm),
+      });
+
+      if (response.status === 401) {
+        onLogout?.();
+        return;
+      }
+
+      if (!response.ok) throw new Error('Failed to update profile');
+      
+      const data = await response.json();
+      onUpdateProfile({ ...user, ...data.user });
+      setIsEditing(false);
+      showSuccess('Your personal profile has been updated successfully.', 'Profile Updated');
+    } catch (err) {
+      showError(err.message || 'An error occurred while updating your profile.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 1024 * 1024) {
+        showError('Image is too large. Please select a file under 1MB.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProfileForm(prev => ({ ...prev, profile_picture: reader.result }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const totalStations = stations.length;
+  const liveListeners = 0; 
+  const totalDonations = donors.reduce((sum, d) => sum + d.amount, 0); 
+  const volunteers = 0; 
+
+  return (
+    <div className="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 min-h-screen">
+      {(loading || submitting) && (
+        <Loading message={loading ? "Synchronizing Station Data..." : "Finalizing New Station..."} />
+      )}
+      
+      <Modal 
+        {...modal}
+        onClose={() => {
+          modal.onClose();
+          setModal(prev => ({ ...prev, open: false }));
+        }}
+      />
+
+      {/* Fullscreen Media Viewer */}
+      {viewerFile && (
+        <div 
+          className="fixed inset-0 z-[100] bg-slate-950/90 backdrop-blur-xl flex flex-col p-8 animate-in fade-in duration-300"
+          onClick={() => setViewerFile(null)}
+        >
+          <div className="flex justify-between items-center mb-6">
+            <div className="flex items-center gap-4">
+              <div className="size-12 rounded-2xl bg-primary/20 flex items-center justify-center">
+                 <span className="material-symbols-outlined text-primary">
+                    {viewerFile.type === 'image' ? 'image' : 
+                     viewerFile.type === 'video' ? 'movie' : 
+                     viewerFile.type === 'audio' ? 'music_note' : 'description'}
+                 </span>
+              </div>
+              <div>
+                <h3 className="text-white font-bold text-xl">{viewerFile.name}</h3>
+                <p className="text-slate-400 text-xs uppercase font-black tracking-widest">
+                  {(viewerFile.size / (1024 * 1024)).toFixed(2)} MB • {viewerFile.type}
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-4">
+              <a 
+                href={viewerFile.url} 
+                download={viewerFile.name}
+                className="size-12 rounded-full bg-white/10 text-white flex items-center justify-center hover:bg-white/20 transition-all"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <span className="material-symbols-outlined">download</span>
+              </a>
+              <button 
+                onClick={() => setViewerFile(null)}
+                className="size-12 rounded-full bg-white/10 text-white flex items-center justify-center hover:bg-red-500/20 hover:text-red-500 transition-all outline-none"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+          </div>
+          
+          <div 
+            className="flex-1 rounded-3xl overflow-hidden bg-black/40 border border-white/10 flex items-center justify-center relative shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {viewerFile.type === 'image' ? (
+              <img src={viewerFile.url} alt={viewerFile.name} className="max-w-full max-h-full object-contain animate-in zoom-in-95 duration-500" />
+            ) : viewerFile.type === 'video' ? (
+              <video src={viewerFile.url} controls autoPlay className="max-w-full max-h-full" />
+            ) : viewerFile.type === 'audio' ? (
+              <div className="text-center p-12 bg-white/5 rounded-3xl border border-white/10 backdrop-blur-md">
+                <div className="size-32 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-6">
+                  <span className="material-symbols-outlined text-6xl text-emerald-500 animate-pulse">music_note</span>
+                </div>
+                <h4 className="text-white font-bold mb-8">{viewerFile.name}</h4>
+                <audio src={viewerFile.url} controls autoPlay className="w-80" />
+              </div>
+            ) : (
+              <div className="text-center text-white p-12 bg-white/5 rounded-3xl border border-white/10 backdrop-blur-md">
+                <span className={`material-symbols-outlined text-8xl mb-6 ${
+                  viewerFile.name.toLowerCase().endsWith('.pdf') ? 'text-rose-400' :
+                  viewerFile.name.toLowerCase().endsWith('.xls') || viewerFile.name.toLowerCase().endsWith('.xlsx') ? 'text-emerald-400' :
+                  'text-indigo-400'
+                }`}>
+                  {
+                    viewerFile.name.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' :
+                    viewerFile.name.toLowerCase().endsWith('.xls') || viewerFile.name.toLowerCase().endsWith('.xlsx') ? 'table_view' :
+                    'description'
+                  }
+                </span>
+                <p className="text-xl font-bold mb-2">Document Preview Unavailable</p>
+                <p className="text-slate-400 text-sm mb-8 max-w-xs mx-auto">This file type must be downloaded to be viewed on your local device.</p>
+                <a 
+                  href={viewerFile.url} 
+                  download={viewerFile.name}
+                  className="px-8 py-4 bg-primary text-white rounded-2xl font-bold shadow-xl shadow-primary/20 hover:scale-105 transition-all inline-flex items-center gap-3"
+                >
+                  <span className="material-symbols-outlined">download</span>
+                  Download File
+                </a>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="flex h-screen overflow-hidden">
+        <Sidebar 
+          user={user} 
+          active={activeSection} 
+          onSelect={setActiveSection} 
+          isOpen={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+        />
+
+
+        <main className="flex-1 flex flex-col overflow-hidden">
+          <header className="h-20 md:h-16 border-b border-primary/10 flex items-center justify-between px-4 md:px-8 bg-background-light dark:bg-background-dark z-10 gap-4">
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={() => setSidebarOpen(true)}
+                className="md:hidden p-2 text-slate-500 hover:text-primary hover:bg-primary/5 rounded-xl"
+              >
+                <span className="material-symbols-outlined">menu</span>
+              </button>
+              <div className="relative w-full max-w-md group hidden sm:block">
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary">search</span>
+                <input
+                  type="text"
+                  className="w-full bg-primary/5 border-none rounded-xl pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-primary/20 text-slate-900 dark:text-slate-100 placeholder:text-slate-500"
+                  placeholder="Search listeners..."
+                />
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-2 md:gap-4">
+              <button className="p-2 text-slate-500 hover:text-primary hover:bg-primary/5 rounded-xl relative hidden xs:flex">
+                <span className="material-symbols-outlined">notifications</span>
+                <span className="absolute top-2 right-2 size-2 bg-primary rounded-full border-2 border-background-light dark:border-background-dark" />
+              </button>
+              <button
+                onClick={toggleTheme}
+                className="p-2 text-slate-500 hover:text-primary hover:bg-primary/5 rounded-xl"
+                aria-label="Toggle dark/light mode"
+              >
+                <span className="material-symbols-outlined">{isDark ? 'light_mode' : 'dark_mode'}</span>
+              </button>
+              <div className="bg-primary text-white px-3 md:px-4 py-1.5 rounded-lg text-[10px] font-black flex items-center gap-2 tracking-widest uppercase shadow-lg shadow-primary/20">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
+                </span>
+                <span className="hidden xs:inline">Live</span>
+              </div>
+              <div className="h-6 w-px bg-primary/10 mx-1 md:mx-2 hidden sm:block" />
+              <div className="flex items-center gap-2 md:gap-3">
+                <div className="size-8 rounded-full bg-primary/20 border border-primary/20 overflow-hidden flex items-center justify-center">
+                  {user?.profile_picture ? (
+                    <img src={user.profile_picture} alt="Avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="material-symbols-outlined text-primary text-lg">person</span>
+                  )}
+                </div>
+                <button
+                  onClick={() => onLogout?.()}
+                  className="px-2 md:px-3 py-1.5 text-[10px] md:text-xs font-bold text-red-500 hover:bg-red-50 rounded-lg transition-colors border border-red-100 whitespace-nowrap"
+                >
+                  Logout
+                </button>
+              </div>
+            </div>
+          </header>
+
+          <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-8">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+              <div>
+                <h1 className="text-2xl md:text-3xl font-black tracking-tight mb-1">{activeSection.charAt(0).toUpperCase() + activeSection.slice(1)}</h1>
+                <p className="text-slate-500 text-sm md:text-base">Welcome back, {user?.full_name || user?.username || 'manager'}. Here's your live station feed.</p>
+              </div>
+              <div className="flex gap-2 md:gap-3">
+                <button className="flex-1 md:flex-none px-4 py-2 text-xs md:text-sm border border-primary/20 text-primary font-semibold rounded-xl hover:bg-primary/5">Reports</button>
+                <button className="flex-1 md:flex-none px-4 py-2 text-xs md:text-sm bg-primary text-white font-semibold rounded-xl hover:bg-primary/90 transition-colors">Go Live</button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="bg-white dark:bg-slate-800/40 p-6 rounded-2xl border border-primary/10 hover:border-primary/30 transition-all shadow-sm">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="p-2 bg-primary/10 rounded-lg text-primary">
+                    <span className="material-symbols-outlined">analytics</span>
+                  </div>
+                  <span className="text-emerald-500 text-sm font-bold flex items-center">+5% <span className="material-symbols-outlined text-xs">arrow_upward</span></span>
+                </div>
+                <p className="text-slate-500 text-sm font-medium">System Health</p>
+                <h3 className="text-2xl font-bold mt-1">Optimal</h3>
+              </div>
+              <div className="bg-white dark:bg-slate-800/40 p-6 rounded-2xl border border-primary/10 hover:border-primary/30 transition-all shadow-sm">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="p-2 bg-amber-500/10 rounded-lg text-amber-500">
+                    <span className="material-symbols-outlined">volunteer_activism</span>
+                  </div>
+                  <span className="text-emerald-500 text-sm font-bold flex items-center">+5.4% <span className="material-symbols-outlined text-xs">arrow_upward</span></span>
+                </div>
+                <p className="text-slate-500 text-sm font-medium">Estimated Reach</p>
+                <h3 className="text-2xl font-bold mt-1">{liveListeners}</h3>
+              </div>
+              <div className="bg-white dark:bg-slate-800/40 p-6 rounded-2xl border border-primary/10 hover:border-primary/30 transition-all shadow-sm">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="p-2 bg-indigo-500/10 rounded-lg text-indigo-500">
+                    <span className="material-symbols-outlined">person_add</span>
+                  </div>
+                  <span className="text-emerald-500 text-sm font-bold flex items-center">+18% <span className="material-symbols-outlined text-xs">arrow_upward</span></span>
+                </div>
+                <p className="text-slate-500 text-sm font-medium">Donations</p>
+                <h3 className="text-2xl font-bold mt-1">${totalDonations}</h3>
+              </div>
+              <div className="bg-white dark:bg-slate-800/40 p-6 rounded-2xl border border-primary/10 hover:border-primary/30 transition-all shadow-sm">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="p-2 bg-rose-500/10 rounded-lg text-rose-500">
+                    <span className="material-symbols-outlined">payments</span>
+                  </div>
+                  <span className="text-emerald-500 text-sm font-bold flex items-center">Value</span>
+                </div>
+                <p className="text-slate-500 text-sm font-medium">Assets Registry</p>
+                <h3 className="text-2xl font-bold mt-1">SLe {assetStats.totalValue.toLocaleString()}</h3>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {activeSection === 'analytics' ? (
+                <>
+                  <div className="lg:col-span-3 flex flex-col gap-8">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div>
+                        <h2 className="text-2xl font-black">Institutional Intelligence</h2>
+                        <p className="text-sm text-slate-500">Cross-departmental performance metrics</p>
+                      </div>
+                      <button 
+                        onClick={exportOverallStats}
+                        className="px-6 py-3 bg-primary text-white font-bold rounded-2xl shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2 text-sm"
+                      >
+                        <span className="material-symbols-outlined text-sm">analytics</span>
+                        Export Stats
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                      <div className="bg-white dark:bg-slate-800/40 p-8 rounded-3xl border border-primary/10 shadow-sm relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                          <span className="material-symbols-outlined text-6xl">payments</span>
+                        </div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Financial Inflow</p>
+                        <h3 className="text-3xl font-black text-slate-900 dark:text-white">SLe {analyticsSummary.donors?.totalAmount?.toLocaleString()}</h3>
+                        <div className="mt-4 flex items-center gap-2 text-emerald-500 font-bold text-xs">
+                          <span className="material-symbols-outlined text-sm">trending_up</span>
+                          {analyticsSummary.donors?.totalCount} Contributions
+                        </div>
+                      </div>
+
+                      <div className="bg-white dark:bg-slate-800/40 p-8 rounded-3xl border border-primary/10 shadow-sm relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                          <span className="material-symbols-outlined text-6xl">inventory_2</span>
+                        </div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Capital Assets</p>
+                        <h3 className="text-3xl font-black text-slate-900 dark:text-white">SLe {analyticsSummary.assets?.totalValue?.toLocaleString()}</h3>
+                        <div className="mt-4 flex items-center gap-2 text-primary font-bold text-xs">
+                          <span className="material-symbols-outlined text-sm">verified</span>
+                          {analyticsSummary.assets?.totalCount} Items Logged
+                        </div>
+                      </div>
+
+                      <div className="bg-white dark:bg-slate-800/40 p-8 rounded-3xl border border-primary/10 shadow-sm relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                          <span className="material-symbols-outlined text-6xl">handshake</span>
+                        </div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Strategic Allies</p>
+                        <h3 className="text-3xl font-black text-slate-900 dark:text-white">{analyticsSummary.partners?.total}</h3>
+                        <div className="mt-4 flex items-center gap-2 text-indigo-500 font-bold text-xs">
+                          <span className="material-symbols-outlined text-sm">hub</span>
+                          NGO & Corp Network
+                        </div>
+                      </div>
+
+                      <div className="bg-white dark:bg-slate-800/40 p-8 rounded-3xl border border-primary/10 shadow-sm relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                          <span className="material-symbols-outlined text-6xl">task_alt</span>
+                        </div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Ops Velocity</p>
+                        <h3 className="text-3xl font-black text-slate-900 dark:text-white">{analyticsSummary.tasks?.completionRate}%</h3>
+                        <div className="mt-4 flex items-center gap-2 text-emerald-500 font-bold text-xs">
+                          <span className="material-symbols-outlined text-sm">speed</span>
+                          {analyticsSummary.tasks?.completed} Tasks Finalized
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                      <div className="bg-white dark:bg-slate-800/40 p-8 rounded-3xl border border-primary/10 shadow-sm">
+                        <h4 className="font-bold text-lg mb-6 flex items-center gap-2">
+                           <span className="material-symbols-outlined text-primary">pie_chart</span>
+                           Partnership Diversity
+                        </h4>
+                        <div className="space-y-4">
+                          {analyticsSummary.partners?.breakdown?.map((b, i) => (
+                            <div key={i} className="space-y-2">
+                              <div className="flex justify-between text-xs font-bold">
+                                <span className="text-slate-500 uppercase tracking-tighter">{b.type}</span>
+                                <span className="text-primary">{b.count} Partners</span>
+                              </div>
+                              <div className="h-2 w-full bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
+                                <div 
+                                  className="h-full bg-primary rounded-full transition-all duration-1000" 
+                                  style={{ width: `${(b.count / analyticsSummary.partners.total * 100)}%` }}
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="bg-white dark:bg-slate-800/40 p-8 rounded-3xl border border-primary/10 shadow-sm">
+                        <h4 className="font-bold text-lg mb-6 flex items-center gap-2">
+                           <span className="material-symbols-outlined text-emerald-500">database</span>
+                           Content Distribution
+                        </h4>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-transparent hover:border-emerald-500/20 transition-all">
+                             <span className="material-symbols-outlined text-emerald-500 text-sm">cloud_done</span>
+                             <div className="text-2xl font-black mt-2">{analyticsSummary.media?.totalFiles}</div>
+                             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Media Items</div>
+                          </div>
+                          <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-transparent hover:border-indigo-500/20 transition-all">
+                             <span className="material-symbols-outlined text-indigo-500 text-sm">history_edu</span>
+                             <div className="text-2xl font-black mt-2">{auditLogs.length}</div>
+                             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">System Events (24h)</div>
+                          </div>
+                        </div>
+                        <div className="mt-8 p-6 bg-primary/5 rounded-2xl border border-primary/10">
+                           <p className="text-xs text-slate-500 font-medium leading-relaxed italic">
+                             "The station's digital content footprint is expanding. Ensure regular media clean-up to maintain optimal system responsiveness."
+                           </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : activeSection === 'dashboard' || activeSection === 'broadcasts' || activeSection === 'inventory' || activeSection === 'staff' ? (
+                <>
+                  <div className="lg:col-span-3 py-16 flex flex-col items-center justify-center bg-white dark:bg-slate-800/40 rounded-2xl border border-primary/10 shadow-sm text-center">
+                    <div className="size-20 bg-primary/10 rounded-full flex items-center justify-center text-primary mb-6">
+                      <span className="material-symbols-outlined text-4xl">analytics</span>
+                    </div>
+                    <h2 className="text-2xl font-bold mb-2">Platform Overview</h2>
+                    <p className="text-slate-500 max-w-sm mb-6">
+                      Detailed system reports and live metrics are being synchronized. You have {assetStats.total} assets registered.
+                    </p>
+                    <div className="flex gap-4">
+                      <div className="px-4 py-2 bg-emerald-500/10 text-emerald-600 rounded-lg text-xs font-bold uppercase transition-all">
+                        {assetStats.operational} Operational
+                      </div>
+                      <div className="px-4 py-2 bg-amber-500/10 text-amber-600 rounded-lg text-xs font-bold uppercase transition-all">
+                        {assetStats.maintenance} Maintenance
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : activeSection === 'assets' ? (
+                <>
+                  <div className="lg:col-span-3 flex flex-col gap-6">
+                    {/* Controls Bar */}
+                    <div className="bg-white dark:bg-slate-800/40 rounded-2xl border border-primary/10 p-4 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
+                      <div className="flex flex-1 gap-4 w-full">
+                        <div className="relative flex-1">
+                          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
+                          <input 
+                            type="text" 
+                            placeholder="Search by ID or name..."
+                            value={assetSearch}
+                            onChange={(e) => setAssetSearch(e.target.value)}
+                            className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl pl-10 pr-4 py-2 text-xs focus:ring-2 focus:ring-primary/20"
+                          />
+                        </div>
+                        <select 
+                          value={assetStatusFilter}
+                          onChange={(e) => setAssetStatusFilter(e.target.value)}
+                          className="bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-2 text-xs focus:ring-2 focus:ring-primary/20"
+                        >
+                          <option value="All">All Statuses</option>
+                          <option value="Operational">Operational</option>
+                          <option value="Maintenance">Maintenance</option>
+                          <option value="Faulty">Faulty</option>
+                        </select>
+                      </div>
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={exportAssets}
+                          className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-primary/10 hover:text-primary transition-all"
+                        >
+                          <span className="material-symbols-outlined text-sm">picture_as_pdf</span>
+                          Export PDF
+                        </button>
+                        <button 
+                          onClick={() => {
+                            // Simple CSV export for "Excel" requirement
+                            const headers = "Asset ID,Name,Category,Status,Value(SLe),Location\n";
+                            const rows = assets.map(a => `${a.asset_tag},${a.name},${a.category},${a.status},${a.value},${a.location}`).join("\n");
+                            const blob = new Blob([headers + rows], { type: 'text/csv' });
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `assets_${new Date().toISOString().split('T')[0]}.csv`;
+                            a.click();
+                          }}
+                          className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-emerald-500/10 hover:text-emerald-600 transition-all"
+                        >
+                          <span className="material-symbols-outlined text-sm">table_view</span>
+                          Excel/CSV
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                      <div className="lg:col-span-2 flex flex-col bg-white dark:bg-slate-800/40 rounded-2xl border border-primary/10 p-6 shadow-sm min-h-[400px]">
+                        <div className="flex items-center justify-between mb-6">
+                          <div>
+                            <h2 className="text-xl font-bold">Station Assets</h2>
+                            <p className="text-xs text-slate-500 mt-1">{assets.length} items in registry</p>
+                          </div>
+                          <button onClick={fetchAssets} className="p-2 hover:bg-primary/5 rounded-full text-primary transition-all">
+                            <span className="material-symbols-outlined text-sm">refresh</span>
+                          </button>
+                        </div>
+
+                        {loading ? (
+                          <div className="flex-1 flex items-center justify-center">
+                            <div className="animate-spin size-6 border-2 border-primary border-t-transparent rounded-full" />
+                          </div>
+                        ) : (
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-left text-xs border-separate border-spacing-y-3">
+                              <thead>
+                                <tr className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">
+                                  <th className="px-4 py-2">Preview</th>
+                                  <th className="px-4 py-2">Asset Details</th>
+                                  <th className="px-4 py-2">Valuation</th>
+                                  <th className="px-4 py-2 text-right">Actions</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {assets
+                                  .filter(a => (assetStatusFilter === 'All' || a.status === assetStatusFilter))
+                                  .filter(a => a.name.toLowerCase().includes(assetSearch.toLowerCase()) || a.asset_tag.toLowerCase().includes(assetSearch.toLowerCase()))
+                                  .map((a) => (
+                                  <tr key={a.id} className="bg-primary/5 dark:bg-slate-800/20 rounded-2xl group">
+                                    <td className="px-4 py-4 first:rounded-l-2xl">
+                                      <div className="size-12 rounded-xl bg-slate-200 dark:bg-slate-700 overflow-hidden border border-primary/10">
+                                        {a.image ? (
+                                          <img src={a.image} className="w-full h-full object-cover" alt={a.name} />
+                                        ) : (
+                                          <div className="w-full h-full flex items-center justify-center text-slate-400">
+                                            <span className="material-symbols-outlined">image</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </td>
+                                    <td className="px-4 py-4">
+                                      <div className="flex flex-col">
+                                        <div className="flex items-center gap-2">
+                                          <span className="font-black text-primary tracking-tighter">{a.asset_tag}</span>
+                                          <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${
+                                            a.status === 'Operational' ? 'bg-emerald-500/10 text-emerald-600' :
+                                            a.status === 'Maintenance' ? 'bg-amber-500/10 text-amber-600' :
+                                            'bg-red-500/10 text-red-600'
+                                          }`}>
+                                            {a.status}
+                                          </span>
+                                        </div>
+                                        <div className="font-bold text-slate-900 dark:text-slate-100 mt-0.5">{a.name}</div>
+                                        <div className="text-[10px] text-slate-500 uppercase font-black">{a.category} • {a.location}</div>
+                                      </div>
+                                    </td>
+                                    <td className="px-4 py-4">
+                                      <div className="font-black text-slate-900 dark:text-slate-100">SLe {a.value?.toLocaleString()}</div>
+                                      <div className="text-[10px] text-slate-500">Recorded: {a.purchase_date}</div>
+                                    </td>
+                                    <td className="px-4 py-4 last:rounded-r-2xl text-right">
+                                      <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button 
+                                          onClick={() => {
+                                            setAssetForm(a);
+                                            setIsEditingAsset(true);
+                                            setCurrentAssetId(a.id);
+                                          }}
+                                          className="p-2 hover:bg-primary/10 text-primary rounded-lg"
+                                        >
+                                          <span className="material-symbols-outlined text-sm">edit</span>
+                                        </button>
+                                        <button 
+                                          onClick={() => deleteAsset(a.id)}
+                                          className="p-2 hover:bg-red-500/10 text-red-500 rounded-lg"
+                                        >
+                                          <span className="material-symbols-outlined text-sm">delete</span>
+                                        </button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex flex-col bg-white dark:bg-slate-800/40 rounded-2xl border border-primary/10 p-6 shadow-sm h-fit">
+                        <div className="flex items-center justify-between mb-6">
+                           <h2 className="text-xl font-bold">{isEditingAsset ? 'Edit Asset' : 'Register New Asset'}</h2>
+                           {isEditingAsset && (
+                             <button 
+                               onClick={() => {
+                                 setIsEditingAsset(false);
+                                 setAssetForm({
+                                   name: '', category: 'Electronics', status: 'Operational',
+                                   purchase_date: new Date().toISOString().split('T')[0],
+                                   value: '', location: '', notes: '', image: ''
+                                 });
+                               }}
+                               className="text-xs text-red-500 font-bold hover:underline"
+                             >
+                               Cancel
+                             </button>
+                           )}
+                        </div>
+                        
+                        <form className="space-y-4" onSubmit={addAsset}>
+                          <div className="relative group mx-auto size-32 rounded-2xl border-2 border-dashed border-primary/20 flex flex-col items-center justify-center overflow-hidden hover:border-primary transition-all cursor-pointer">
+                            {assetForm.image ? (
+                              <img src={assetForm.image} className="w-full h-full object-cover" alt="Preview" />
+                            ) : (
+                              <>
+                                <span className="material-symbols-outlined text-primary/40 text-3xl">add_a_photo</span>
+                                <span className="text-[10px] font-bold text-slate-400 mt-2">Upload Photo</span>
+                              </>
+                            )}
+                            <input 
+                              type="file" 
+                              accept="image/*"
+                              onChange={handleAssetImageUpload}
+                              className="absolute inset-0 opacity-0 cursor-pointer"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2 tracking-widest">Asset Name</label>
+                            <input
+                              type="text"
+                              required
+                              value={assetForm.name}
+                              onChange={(e) => setAssetForm(p => ({ ...p, name: e.target.value }))}
+                              className="w-full rounded-xl border border-slate-200 p-3 bg-slate-50 dark:bg-slate-900/50 dark:border-slate-700 text-sm focus:ring-2 focus:ring-primary/20 transition-all font-medium"
+                              placeholder="e.g., Studio Microphone A1"
+                            />
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-xs font-bold text-slate-500 uppercase mb-2 tracking-widest">Category</label>
+                              <select
+                                value={assetForm.category}
+                                onChange={(e) => setAssetForm(p => ({ ...p, category: e.target.value }))}
+                                className="w-full rounded-xl border border-slate-200 p-3 bg-slate-50 dark:bg-slate-900/50 dark:border-slate-700 text-xs font-bold"
+                              >
+                                <option>Electronics</option>
+                                <option>Furniture</option>
+                                <option>Transmitter</option>
+                                <option>Studio Gear</option>
+                                <option>Vehicles</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-slate-500 uppercase mb-2 tracking-widest">Initial State</label>
+                              <select
+                                value={assetForm.status}
+                                onChange={(e) => setAssetForm(p => ({ ...p, status: e.target.value }))}
+                                className="w-full rounded-xl border border-slate-200 p-3 bg-slate-50 dark:bg-slate-900/50 dark:border-slate-700 text-xs font-bold"
+                              >
+                                <option>Operational</option>
+                                <option>Maintenance</option>
+                                <option>Faulty</option>
+                              </select>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-xs font-bold text-slate-500 uppercase mb-2 tracking-widest">Purchase Date</label>
+                              <input
+                                type="date"
+                                value={assetForm.purchase_date}
+                                onChange={(e) => setAssetForm(p => ({ ...p, purchase_date: e.target.value }))}
+                                className="w-full rounded-xl border border-slate-200 p-3 bg-slate-50 dark:bg-slate-900/50 dark:border-slate-700 text-sm font-medium"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-slate-500 uppercase mb-2 tracking-widest">Value (SLe)</label>
+                              <input
+                                type="number"
+                                value={assetForm.value}
+                                onChange={(e) => setAssetForm(p => ({ ...p, value: e.target.value }))}
+                                className="w-full rounded-xl border border-slate-200 p-3 bg-slate-50 dark:bg-slate-900/50 dark:border-slate-700 text-sm font-medium"
+                                placeholder="0.00"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2 tracking-widest">Location</label>
+                            <input
+                              type="text"
+                              value={assetForm.location}
+                              onChange={(e) => setAssetForm(p => ({ ...p, location: e.target.value }))}
+                              className="w-full rounded-xl border border-slate-200 p-3 bg-slate-50 dark:bg-slate-900/50 dark:border-slate-700 text-sm font-medium"
+                              placeholder="e.g., Studio Desk 1"
+                            />
+                          </div>
+                          <button
+                            type="submit"
+                            disabled={submitting}
+                            className={`w-full py-4 text-white font-black uppercase text-xs tracking-widest rounded-xl shadow-lg active:scale-95 transition-all disabled:opacity-50 ${isEditingAsset ? 'bg-amber-500 shadow-amber-500/20' : 'bg-primary shadow-primary/20'}`}
+                          >
+                            {submitting ? 'Processing...' : isEditingAsset ? 'Update Asset' : 'Register Asset'}
+                          </button>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : activeSection === 'media' ? (
+                <>
+                  <div className="lg:col-span-3 flex flex-col gap-6">
+                    {/* Media Header & Controls */}
+                    <div className="bg-white dark:bg-slate-800/40 rounded-2xl border border-primary/10 p-6 shadow-sm">
+                      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span 
+                              className="text-primary font-bold cursor-pointer hover:underline"
+                              onClick={() => setCurrentFolderId(null)}
+                            >
+                              Media Root
+                            </span>
+                            {currentFolderId && (
+                              <>
+                                <span className="text-slate-400">/</span>
+                                <span className="font-bold text-slate-900 dark:text-slate-100">
+                                  {folders.find(f => f.id === currentFolderId)?.name}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-500">Manage station assets, recordings, and documentation</p>
+                        </div>
+                        <div className="flex gap-3">
+                          <button 
+                            onClick={() => setIsCreatingFolder(true)}
+                            className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-primary/10 hover:text-primary transition-all"
+                          >
+                            <span className="material-symbols-outlined text-sm">create_new_folder</span>
+                            New Folder
+                          </button>
+                          <label className="px-4 py-2 bg-primary text-white rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-primary/90 cursor-pointer shadow-lg shadow-primary/20">
+                            <span className="material-symbols-outlined text-sm">upload_file</span>
+                            Upload Media
+                            <input type="file" className="hidden" onChange={handleMediaUpload} />
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Media Stats Grid */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+                        {[
+                          { label: 'Images', type: 'image', icon: 'image', color: 'text-primary' },
+                          { label: 'Videos', type: 'video', icon: 'movie', color: 'text-rose-500' },
+                          { label: 'Audio', type: 'audio', icon: 'music_note', color: 'text-emerald-500' },
+                          { label: 'Documents', type: 'document', icon: 'description', color: 'text-indigo-500' }
+                        ].map((stat) => (
+                          <div key={stat.type} className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl border border-primary/5">
+                            <div className="flex items-center gap-3">
+                              <span className={`material-symbols-outlined ${stat.color}`}>{stat.icon}</span>
+                              <div>
+                                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">{stat.label}</p>
+                                <p className="text-lg font-bold">{mediaStats[stat.type]?.count || 0}</p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="mt-8 flex flex-col md:flex-row gap-4 items-center mb-4">
+                        <div className="flex-1 w-full flex gap-3">
+                          <div className="relative flex-1">
+                            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">event</span>
+                            <input 
+                              type="date" 
+                              value={mediaUploadDate}
+                              onChange={(e) => setMediaUploadDate(e.target.value)}
+                              className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl pl-10 pr-4 py-2 text-xs focus:ring-2 focus:ring-primary/20 font-bold"
+                            />
+                          </div>
+                          <div className="flex-1 text-[10px] text-slate-500 flex flex-col justify-center leading-tight">
+                            <span className="font-bold uppercase tracking-widest text-primary">Upload Date</span>
+                            <span>Setting this helps track broadcast/creation dates accurately.</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Search & Filters */}
+                      <div className="mt-2 flex flex-col md:flex-row gap-4 items-center border-t border-primary/5 pt-6">
+                        <div className="relative flex-1 w-full">
+                          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
+                          <input 
+                            type="text" 
+                            placeholder="Search library..."
+                            value={mediaSearch}
+                            onChange={(e) => setMediaSearch(e.target.value)}
+                            className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl pl-10 pr-4 py-2 text-xs focus:ring-2 focus:ring-primary/20"
+                          />
+                        </div>
+                        <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
+                          {['All', 'image', 'video', 'audio', 'document'].map(type => (
+                            <button
+                              key={type}
+                              onClick={() => setMediaTypeFilter(type)}
+                              className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest whitespace-nowrap transition-all ${
+                                mediaTypeFilter === type 
+                                ? 'bg-primary text-white shadow-md' 
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-primary/5 hover:text-primary'
+                              }`}
+                            >
+                              {type}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Folders & Files Grid */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                      {/* Create Folder Popup (Inline) */}
+                      {isCreatingFolder && (
+                        <div className="bg-primary/5 border-2 border-dashed border-primary/20 rounded-2xl p-4 flex flex-col gap-3">
+                          <input 
+                            autoFocus
+                            type="text" 
+                            placeholder="Folder Name"
+                            value={newFolderName}
+                            onChange={(e) => setNewFolderName(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && createMediaFolder()}
+                            className="bg-white dark:bg-slate-900 border-none rounded-lg p-2 text-xs"
+                          />
+                          <div className="flex gap-2">
+                            <button onClick={createMediaFolder} className="flex-1 py-1 bg-primary text-white rounded-lg text-[10px] font-bold">Create</button>
+                            <button onClick={() => setIsCreatingFolder(false)} className="px-2 py-1 text-slate-400 text-[10px] font-bold">Cancel</button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Display Folders (Only at root or according to parent if we had nested, but we have simple folders for now) */}
+                      {!currentFolderId && folders.map(folder => (
+                        <div 
+                          key={folder.id}
+                          className="group relative bg-white dark:bg-slate-800/40 rounded-2xl border border-primary/10 p-4 flex flex-col items-center justify-center gap-2 hover:border-primary/40 hover:scale-[1.02] transition-all cursor-pointer shadow-sm"
+                          onClick={() => setCurrentFolderId(folder.id)}
+                        >
+                          <span className="material-symbols-outlined text-amber-500 text-4xl">folder</span>
+                          <span className="text-[11px] font-bold text-center truncate w-full">{folder.name}</span>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); deleteMediaFolder(folder.id); }}
+                            className="absolute top-2 right-2 p-1 text-red-500 opacity-0 group-hover:opacity-100 hover:bg-red-50 rounded"
+                          >
+                            <span className="material-symbols-outlined text-sm">delete</span>
+                          </button>
+                        </div>
+                      ))}
+
+                      {/* Display Files */}
+                      {mediaFiles
+                        .filter(f => (mediaTypeFilter === 'All' || f.type === mediaTypeFilter))
+                        .filter(f => f.name.toLowerCase().includes(mediaSearch.toLowerCase()))
+                        .map(file => (
+                        <div 
+                          key={file.id}
+                          className="group relative bg-white dark:bg-slate-800/40 rounded-2xl border border-primary/10 p-4 flex flex-col items-center justify-center gap-2 hover:border-primary/40 hover:scale-[1.02] transition-all shadow-sm"
+                        >
+                          <div className="size-16 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-900 flex items-center justify-center">
+                            {file.type === 'image' ? (
+                              <img src={file.url} className="w-full h-full object-cover" alt={file.name} />
+                            ) : file.type === 'video' ? (
+                              <span className="material-symbols-outlined text-3xl text-primary">movie</span>
+                            ) : file.type === 'audio' ? (
+                              <span className="material-symbols-outlined text-3xl text-emerald-500">music_note</span>
+                            ) : (
+                              <span className={`material-symbols-outlined text-3xl ${
+                                file.name.toLowerCase().endsWith('.pdf') ? 'text-rose-500' :
+                                file.name.toLowerCase().endsWith('.xls') || file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.csv') ? 'text-emerald-500' :
+                                file.name.toLowerCase().endsWith('.doc') || file.name.toLowerCase().endsWith('.docx') ? 'text-primary' :
+                                'text-indigo-500'
+                              }`}>
+                                {
+                                  file.name.toLowerCase().endsWith('.pdf') ? 'picture_as_pdf' :
+                                  file.name.toLowerCase().endsWith('.xls') || file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.csv') ? 'table_view' :
+                                  file.name.toLowerCase().endsWith('.doc') || file.name.toLowerCase().endsWith('.docx') ? 'description' :
+                                  'draft'
+                                }
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[10px] font-bold text-center truncate w-full">{file.name}</span>
+                          
+                          {/* File Actions */}
+                          <div className="absolute inset-0 bg-primary/80 backdrop-blur-[2px] rounded-2xl flex flex-col items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                            <button 
+                              onClick={() => setViewerFile(file)}
+                              className="p-2 bg-white text-primary rounded-full hover:scale-110 active:scale-95 transition-all shadow-lg"
+                              title="View"
+                            >
+                              <span className="material-symbols-outlined text-lg">visibility</span>
+                            </button>
+                            <a 
+                              href={file.url} 
+                              download={file.name}
+                              className="p-2 bg-white text-primary rounded-full hover:scale-110 active:scale-95 transition-all shadow-lg"
+                              title="Download"
+                            >
+                              <span className="material-symbols-outlined text-lg">download</span>
+                            </a>
+                            <button 
+                              onClick={() => deleteMediaFile(file.id)}
+                              className="p-2 bg-red-500 text-white rounded-full hover:scale-110 active:scale-95 transition-all shadow-lg"
+                              title="Delete"
+                            >
+                              <span className="material-symbols-outlined text-lg">delete</span>
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+
+                      {mediaFiles.length === 0 && !isCreatingFolder && !folders.length && (
+                        <div className="col-span-full py-20 text-center text-slate-400">
+                          <span className="material-symbols-outlined text-5xl mb-4">cloud_off</span>
+                          <p className="font-bold">This directory is empty.</p>
+                          <p className="text-xs">Upload some files to get started.</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              ) : activeSection === 'audit' ? (
+                <>
+                  <div className="lg:col-span-3 flex flex-col bg-white dark:bg-slate-800/40 rounded-2xl border border-primary/10 p-6 shadow-sm">
+                    <div className="flex items-center justify-between mb-6">
+                      <div>
+                        <h2 className="text-xl font-bold">System Audit Logs</h2>
+                        <p className="text-xs text-slate-500">History of all actions performed on the platform</p>
+                      </div>
+                      <button onClick={fetchAuditLogs} className="p-2 bg-primary/10 text-primary rounded-xl hover:bg-primary/20 transition-all">
+                        <span className="material-symbols-outlined text-lg">refresh</span>
+                      </button>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead>
+                          <tr className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                            <th className="px-4 py-3 font-black uppercase tracking-widest">Timestamp</th>
+                            <th className="px-4 py-3 font-black uppercase tracking-widest">Team Member</th>
+                            <th className="px-4 py-3 font-black uppercase tracking-widest">Action</th>
+                            <th className="px-4 py-3 font-black uppercase tracking-widest">Details</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-primary/5">
+                          {auditLogs.map((log) => (
+                            <tr key={log.id} className="hover:bg-primary/5 transition-colors">
+                              <td className="px-4 py-4 whitespace-nowrap text-slate-500 font-medium">
+                                {new Date(log.created_at).toLocaleString()}
+                              </td>
+                              <td className="px-4 py-4">
+                                <div className="flex items-center gap-2">
+                                  <div className="size-6 rounded-lg bg-primary/20 flex items-center justify-center text-primary text-[10px] font-bold uppercase">
+                                    {log.full_name?.substring(0, 2) || log.username?.substring(0, 2) || '??'}
+                                  </div>
+                                  <span className="font-bold">{log.full_name || log.username}</span>
+                                </div>
+                              </td>
+                              <td className="px-4 py-4">
+                                <span className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-tighter ${
+                                  log.action.includes('DELETE') ? 'bg-red-500/10 text-red-500' :
+                                  log.action.includes('CREATE') || log.action.includes('UPLOAD') ? 'bg-emerald-500/10 text-emerald-500' :
+                                  'bg-primary/10 text-primary'
+                                }`}>
+                                  {log.action.replace('_', ' ')}
+                                </span>
+                              </td>
+                              <td className="px-4 py-4 text-slate-600 dark:text-slate-400 leading-normal italic">
+                                "{log.details}"
+                              </td>
+                            </tr>
+                          ))}
+                          {auditLogs.length === 0 && (
+                            <tr>
+                              <td colSpan="4" className="py-20 text-center text-slate-400 font-bold uppercase text-[10px] tracking-widest">
+                                No activity logs found.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              ) : activeSection === 'tasks' ? (
+                <>
+                  <div className="lg:col-span-2 flex flex-col bg-white dark:bg-slate-800/40 rounded-2xl border border-primary/10 p-6 shadow-sm">
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="flex items-center gap-3">
+                        <div className="size-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
+                          <span className="material-symbols-outlined">assignment</span>
+                        </div>
+                        <div>
+                          <h2 className="text-xl font-bold">Activity Coordinator</h2>
+                          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Daily & Weekly Operations</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={exportTasks} className="p-2.5 bg-primary/10 text-primary rounded-xl hover:bg-primary/20 transition-all" title="Export PDF">
+                          <span className="material-symbols-outlined text-lg">picture_as_pdf</span>
+                        </button>
+                        <button onClick={exportTasks} className="p-2.5 bg-emerald-500/10 text-emerald-600 rounded-xl hover:bg-emerald-500/20 transition-all" title="Export Excel">
+                          <span className="material-symbols-outlined text-lg">table_view</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mb-6">
+                      <div className="relative md:col-span-2">
+                        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
+                        <input 
+                          type="text" 
+                          placeholder="Search tasks..."
+                          value={taskSearch}
+                          onChange={(e) => setTaskSearch(e.target.value)}
+                          className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl pl-10 pr-4 py-2.5 text-xs focus:ring-2 focus:ring-primary/20"
+                        />
+                      </div>
+                      <select 
+                        value={taskFilter}
+                        onChange={(e) => setTaskFilter(e.target.value)}
+                        className="bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-2.5 text-xs focus:ring-2 focus:ring-primary/20 text-slate-600"
+                      >
+                        <option value="All">All Categories</option>
+                        <option value="Daily">Daily Tasks</option>
+                        <option value="Weekly">Weekly Tasks</option>
+                      </select>
+                      <select 
+                        value={taskUserFilter}
+                        onChange={(e) => setTaskUserFilter(e.target.value)}
+                        className="bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-2.5 text-xs focus:ring-2 focus:ring-primary/20 text-slate-600"
+                      >
+                        <option value="All">All Members</option>
+                        {systemUsers.map(u => (
+                          <option key={u.id} value={u.username}>{u.full_name || u.username}</option>
+                        ))}
+                      </select>
+                      <select 
+                        value={taskSortBy}
+                        onChange={(e) => setTaskSortBy(e.target.value)}
+                        className="bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-2.5 text-xs focus:ring-2 focus:ring-primary/20 text-slate-600"
+                      >
+                        <option value="due_date">Sort by Deadline</option>
+                        <option value="priority">Sort by Priority</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+                      {tasks
+                        .filter(t => t.title.toLowerCase().includes(taskSearch.toLowerCase()) || t.description?.toLowerCase().includes(taskSearch.toLowerCase()))
+                        .filter(t => taskFilter === 'All' || t.category === taskFilter)
+                        .filter(t => taskUserFilter === 'All' || t.creator_name === taskUserFilter)
+                        .sort((a, b) => {
+                          if (taskSortBy === 'due_date') return new Date(a.due_date) - new Date(b.due_date);
+                          return 0;
+                        })
+                        .map((t) => (
+                        <div key={t.id} className="group flex items-start gap-4 p-4 bg-slate-50 dark:bg-slate-900/40 rounded-2xl border border-transparent hover:border-primary/20 transition-all">
+                          <div className={`mt-1 size-5 rounded-md border-2 flex items-center justify-center cursor-pointer transition-colors ${
+                            t.status === 'Completed' ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 dark:border-slate-700 hover:border-primary'
+                          }`} onClick={() => handleToggleTaskStatus(t)}>
+                            {t.status === 'Completed' && <span className="material-symbols-outlined text-[14px] font-black">check</span>}
+                          </div>
+                          
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between mb-1">
+                              <h3 className={`font-bold text-sm ${t.status === 'Completed' ? 'line-through text-slate-400' : 'text-slate-900 dark:text-white'}`}>
+                                {t.title}
+                              </h3>
+                              <div className="flex items-center gap-2">
+                                <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-tighter ${
+                                  t.priority === 'High' ? 'bg-red-500/10 text-red-500' :
+                                  t.priority === 'Medium' ? 'bg-orange-500/10 text-orange-500' :
+                                  'bg-slate-500/10 text-slate-500'
+                                }`}>
+                                  {t.priority}
+                                </span>
+                                <div className="opacity-0 group-hover:opacity-100 flex gap-1 transition-opacity">
+                                  <button onClick={() => {
+                                    setIsEditingTask(true);
+                                    setCurrentTaskId(t.id);
+                                    setTaskForm({ 
+                                      title: t.title, 
+                                      description: t.description || '', 
+                                      category: t.category, 
+                                      priority: t.priority, 
+                                      status: t.status, 
+                                      due_date: t.due_date 
+                                    });
+                                  }} className="p-1 text-primary hover:bg-primary/10 rounded-md">
+                                    <span className="material-symbols-outlined text-sm">edit</span>
+                                  </button>
+                                  <button onClick={() => handleTaskDelete(t.id)} className="p-1 text-red-500 hover:bg-red-50 rounded-md">
+                                    <span className="material-symbols-outlined text-sm">delete</span>
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                            <p className="text-xs text-slate-500 mb-2 leading-relaxed">{t.description}</p>
+                            <div className="flex items-center gap-4">
+                              <div className="flex items-center gap-1 text-[10px] text-slate-400 font-bold uppercase tracking-tight">
+                                <span className="material-symbols-outlined text-[12px]">calendar_today</span>
+                                Due: {t.due_date ? new Date(t.due_date).toLocaleDateString() : 'N/A'}
+                              </div>
+                              <div className="flex items-center gap-1 text-[10px] text-primary font-bold uppercase tracking-tight">
+                                <span className="material-symbols-outlined text-[12px]">person</span>
+                                {t.creator_name || 'System'}
+                              </div>
+                              <div className="flex items-center gap-1 text-[10px] text-primary font-bold uppercase tracking-tight">
+                                <span className="material-symbols-outlined text-[12px]">category</span>
+                                {t.category}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {tasks.length === 0 && (
+                        <div className="py-20 text-center">
+                          <span className="material-symbols-outlined text-4xl text-slate-300 mb-2">task</span>
+                          <p className="text-slate-400 text-sm italic font-bold">No tasks assigned for today.</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col bg-white dark:bg-slate-800/40 rounded-2xl border border-primary/10 p-6 shadow-sm h-fit">
+                    <h2 className="text-xl font-bold mb-4">{isEditingTask ? 'Edit Coordination Task' : 'New Strategic Task'}</h2>
+                    <form className="space-y-4" onSubmit={handleTaskSubmit}>
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Task Title</label>
+                        <input
+                          type="text"
+                          required
+                          value={taskForm.title}
+                          onChange={(e) => setTaskForm(prev => ({ ...prev, title: e.target.value }))}
+                          className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20"
+                          placeholder="e.g. Daily Equipment Check"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Category</label>
+                          <select
+                            value={taskForm.category}
+                            onChange={(e) => setTaskForm(prev => ({ ...prev, category: e.target.value }))}
+                            className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20"
+                          >
+                            <option value="Daily">Daily</option>
+                            <option value="Weekly">Weekly</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Priority</label>
+                          <select
+                            value={taskForm.priority}
+                            onChange={(e) => setTaskForm(prev => ({ ...prev, priority: e.target.value }))}
+                            className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20"
+                          >
+                            <option value="Low">Low</option>
+                            <option value="Medium">Medium</option>
+                            <option value="High">High</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Deadline</label>
+                        <input
+                          type="date"
+                          required
+                          value={taskForm.due_date}
+                          onChange={(e) => setTaskForm(prev => ({ ...prev, due_date: e.target.value }))}
+                          className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Description (Optional)</label>
+                        <textarea
+                          rows="3"
+                          value={taskForm.description}
+                          onChange={(e) => setTaskForm(prev => ({ ...prev, description: e.target.value }))}
+                          className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 resize-none"
+                          placeholder="Describe the objective..."
+                        ></textarea>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          type="submit"
+                          disabled={submitting}
+                          className="flex-1 py-3 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
+                        >
+                          {submitting ? 'Syncing...' : isEditingTask ? 'Update Task' : 'Launch Task'}
+                        </button>
+                        {isEditingTask && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsEditingTask(false);
+                              setCurrentTaskId(null);
+                              setTaskForm({ title: '', description: '', category: 'Daily', priority: 'Medium', status: 'Pending', due_date: new Date().toISOString().split('T')[0] });
+                            }}
+                            className="px-4 py-3 border border-slate-200 text-slate-500 font-bold rounded-xl hover:bg-slate-50 transition-all"
+                          >
+                            Cancel
+                          </button>
+                        )}
+                      </div>
+                    </form>
+                  </div>
+                </>
+              ) : activeSection === 'donors' ? (
+                <>
+                  <div className="lg:col-span-2 flex flex-col bg-white dark:bg-slate-800/40 rounded-2xl border border-primary/10 p-6 shadow-sm">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                      <div className="flex items-center gap-3">
+                        <div className="size-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
+                          <span className="material-symbols-outlined">volunteer_activism</span>
+                        </div>
+                        <h2 className="text-xl font-bold">Recent Donors</h2>
+                      </div>
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={exportDonors}
+                          className="px-4 py-2 bg-primary/10 text-primary font-bold rounded-xl hover:bg-primary/20 transition-all flex items-center gap-2 text-xs"
+                        >
+                          <span className="material-symbols-outlined text-sm">picture_as_pdf</span>
+                          Export PDF
+                        </button>
+                        <button 
+                          onClick={exportDonors}
+                          className="px-4 py-2 bg-emerald-500/10 text-emerald-600 font-bold rounded-xl hover:bg-emerald-500/20 transition-all flex items-center gap-2 text-xs"
+                        >
+                          <span className="material-symbols-outlined text-sm">table_view</span>
+                          Excel Report
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                      <div className="md:col-span-1 relative">
+                        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
+                        <input 
+                          type="text" 
+                          placeholder="Search donors..."
+                          value={donorSearch}
+                          onChange={(e) => setDonorSearch(e.target.value)}
+                          className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl pl-10 pr-4 py-2.5 text-xs focus:ring-2 focus:ring-primary/20"
+                        />
+                      </div>
+                      <div className="flex gap-2 md:col-span-2">
+                        <select 
+                          value={donorSortBy}
+                          onChange={(e) => setDonorSortBy(e.target.value)}
+                          className="flex-1 bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-2.5 text-xs focus:ring-2 focus:ring-primary/20 appearance-none text-slate-600"
+                        >
+                          <option value="date">Sort by Date</option>
+                          <option value="amount">Sort by Amount</option>
+                        </select>
+                        <select 
+                          value={donorFilter}
+                          onChange={(e) => setDonorFilter(e.target.value)}
+                          className="flex-1 bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-2.5 text-xs focus:ring-2 focus:ring-primary/20 appearance-none text-slate-600"
+                        >
+                          <option value="All">All Tiers</option>
+                          <option value="Large">SLe 1,000+</option>
+                          <option value="Recent">Last 30 Days</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {loading ? (
+                      <div className="py-20 flex flex-col items-center gap-4">
+                        <div className="size-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+                        <p className="text-sm text-slate-500 font-bold italic uppercase tracking-widest">Loading Records...</p>
+                      </div>
+                    ) : donors.length === 0 ? (
+                      <p className="text-slate-500 py-10 text-center italic">No donations recorded yet.</p>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-sm">
+                          <thead>
+                            <tr className="bg-primary/5 text-slate-500 dark:text-slate-400">
+                              <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest">Donor</th>
+                              <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest">Amount</th>
+                              <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest">Date</th>
+                              <th className="px-4 py-3 text-right text-[10px] font-black uppercase tracking-widest">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {donors
+                              .filter(d => d.name.toLowerCase().includes(donorSearch.toLowerCase()) || d.email?.toLowerCase().includes(donorSearch.toLowerCase()))
+                              .filter(d => {
+                                if (donorFilter === 'All') return true;
+                                if (donorFilter === 'Large') return d.amount >= 1000;
+                                if (donorFilter === 'Recent') return (new Date() - new Date(d.date)) / (1000 * 3600 * 24) <= 30;
+                                return true;
+                              })
+                              .sort((a, b) => {
+                                if (donorSortBy === 'date') return new Date(b.date) - new Date(a.date);
+                                return b.amount - a.amount;
+                              })
+                              .map((d) => (
+                              <tr key={d.id} className="border-t border-primary/5 hover:bg-primary/5 group transition-colors">
+                                <td className="px-4 py-3">
+                                  <div className="font-bold text-slate-900 dark:text-white capitalize">{d.name}</div>
+                                  <div className="text-[10px] text-slate-500 font-medium lowercase tracking-tight">{d.email || 'no-email@registry.com'}</div>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <span className="px-2 py-1 bg-emerald-500/10 text-emerald-600 rounded-lg text-xs font-black">
+                                    SLe {d.amount?.toLocaleString()}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-[11px] text-slate-500 font-bold">{new Date(d.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric'})}</td>
+                                <td className="px-4 py-3 text-right">
+                                  <div className="flex gap-2 justify-end opacity-0 group-hover:opacity-100 transition-all translate-x-1 group-hover:translate-x-0">
+                                    <button 
+                                      onClick={() => {
+                                        setIsEditingDonor(true);
+                                        setCurrentDonorId(d.id);
+                                        setDonorForm({ name: d.name, email: d.email || '', amount: d.amount });
+                                      }}
+                                      className="p-1.5 text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                                      title="Edit Record"
+                                    >
+                                      <span className="material-symbols-outlined text-sm">edit</span>
+                                    </button>
+                                    <button 
+                                      onClick={() => deleteDonor(d.id)}
+                                      className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                      title="Remove Donor"
+                                    >
+                                      <span className="material-symbols-outlined text-sm">delete</span>
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col bg-white dark:bg-slate-800/40 rounded-2xl border border-primary/10 p-6 shadow-sm h-fit">
+                    <h2 className="text-xl font-bold mb-4">{isEditingDonor ? 'Edit Donor Details' : 'Record Donation'}</h2>
+                    <form className="space-y-4" onSubmit={addDonor}>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-600 dark:text-slate-200">
+                          Donor Name
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={donorForm.name}
+                          onChange={(e) => setDonorForm((prev) => ({ ...prev, name: e.target.value }))}
+                          className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-slate-900 focus:border-primary focus:outline-none dark:bg-slate-800 dark:border-slate-700 dark:text-white"
+                          placeholder="John Doe"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-600 dark:text-slate-200">
+                          Email (Optional)
+                        </label>
+                        <input
+                          type="email"
+                          value={donorForm.email}
+                          onChange={(e) => setDonorForm((prev) => ({ ...prev, email: e.target.value }))}
+                          className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-slate-900 focus:border-primary focus:outline-none dark:bg-slate-800 dark:border-slate-700 dark:text-white"
+                          placeholder="john@example.com"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-600 dark:text-slate-200">
+                          Amount (SLe)
+                        </label>
+                        <input
+                          type="number"
+                          required
+                          value={donorForm.amount}
+                          onChange={(e) => setDonorForm((prev) => ({ ...prev, amount: parseFloat(e.target.value) || '' }))}
+                          className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-slate-900 focus:border-primary focus:outline-none dark:bg-slate-800 dark:border-slate-700 dark:text-white"
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div className="flex gap-3">
+                        <button
+                          type="submit"
+                          disabled={submitting}
+                          className="flex-1 py-2.5 rounded-xl bg-primary text-white font-bold hover:bg-primary/90 transition-colors disabled:opacity-60 shadow-lg shadow-primary/20"
+                        >
+                          {submitting ? 'Processing...' : isEditingDonor ? 'Update Donor' : 'Save Contribution'}
+                        </button>
+                        {isEditingDonor && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsEditingDonor(false);
+                              setCurrentDonorId(null);
+                              setDonorForm({ name: '', email: '', amount: '' });
+                            }}
+                            className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-500 font-bold hover:bg-slate-50 transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        )}
+                      </div>
+                    </form>
+                  </div>
+                </>
+              ) : activeSection === 'partners' ? (
+                <>
+                  <div className="lg:col-span-2 flex flex-col bg-white dark:bg-slate-800/40 rounded-2xl border border-primary/10 p-6 shadow-sm">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                      <div className="flex items-center gap-3">
+                        <div className="size-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
+                          <span className="material-symbols-outlined">handshake</span>
+                        </div>
+                        <div>
+                          <h2 className="text-xl font-bold">Partners Portal</h2>
+                          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Strategic Relationships</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={exportPartnersReport} className="px-4 py-2 bg-primary/10 text-primary font-bold rounded-xl hover:bg-primary/20 transition-all flex items-center gap-2 text-xs">
+                          <span className="material-symbols-outlined text-sm">description</span>
+                          Partnership Report
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+                      <div className="relative">
+                        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
+                        <input 
+                          type="text" 
+                          placeholder="Search partners..."
+                          value={partnerSearch}
+                          onChange={(e) => setPartnerSearch(e.target.value)}
+                          className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl pl-10 pr-4 py-2.5 text-xs focus:ring-2 focus:ring-primary/20"
+                        />
+                      </div>
+                      <select 
+                        value={partnerFilter}
+                        onChange={(e) => setPartnerFilter(e.target.value)}
+                        className="bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-2.5 text-xs focus:ring-2 focus:ring-primary/20 text-slate-600"
+                      >
+                        <option value="All">All Categories</option>
+                        <option value="NGO">NGOs</option>
+                        <option value="Corporate">Corporate</option>
+                        <option value="Government">Government</option>
+                        <option value="Media">Media Partners</option>
+                      </select>
+                      <select 
+                        value={partnerSortBy}
+                        onChange={(e) => setPartnerSortBy(e.target.value)}
+                        className="bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-2.5 text-xs focus:ring-2 focus:ring-primary/20 text-slate-600"
+                      >
+                        <option value="name">Sort A-Z</option>
+                        <option value="date">Newest First</option>
+                      </select>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {partners
+                        .filter(p => (partnerFilter === 'All' || p.type === partnerFilter))
+                        .filter(p => p.name.toLowerCase().includes(partnerSearch.toLowerCase()))
+                        .sort((a, b) => {
+                          if (partnerSortBy === 'name') return a.name.localeCompare(b.name);
+                          return new Date(b.agreement_date) - new Date(a.agreement_date);
+                        })
+                        .map((p) => (
+                        <div key={p.id} className="group relative flex items-center gap-4 p-4 bg-slate-50 dark:bg-slate-900/40 rounded-2xl border border-transparent hover:border-primary/20 transition-all">
+                          <div className="size-14 rounded-xl bg-white dark:bg-slate-800 border border-primary/5 flex items-center justify-center overflow-hidden">
+                            {p.logo ? (
+                              <img src={p.logo} alt={p.name} className="w-full h-full object-contain" />
+                            ) : (
+                              <span className="material-symbols-outlined text-primary/30 text-2xl">business</span>
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-bold text-sm text-slate-900 dark:text-white">{p.name}</h3>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-tight ${
+                                p.status === 'Active' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-slate-500/10 text-slate-500'
+                              }`}>{p.status}</span>
+                              <span className="text-[10px] text-slate-400 font-medium">• {p.type}</span>
+                            </div>
+                            <div className="text-[10px] text-slate-500 mt-1 font-medium">{p.contact_person || 'No contact set'}</div>
+                          </div>
+                          <div className="opacity-0 group-hover:opacity-100 flex flex-col gap-1 transition-opacity">
+                            <button onClick={() => {
+                              setIsEditingPartner(true);
+                              setCurrentPartnerId(p.id);
+                              setPartnerForm({ ...p, notes: p.notes || '' });
+                            }} className="p-1.5 text-primary hover:bg-primary/10 rounded-lg">
+                              <span className="material-symbols-outlined text-[18px]">edit</span>
+                            </button>
+                            <button onClick={() => handlePartnerDelete(p.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg">
+                              <span className="material-symbols-outlined text-[18px]">delete</span>
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {partners.length === 0 && (
+                      <div className="py-20 text-center">
+                        <span className="material-symbols-outlined text-5xl text-slate-200 mb-4 flex justify-center">diversity_3</span>
+                        <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest italic">No partners established yet.</p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col bg-white dark:bg-slate-800/40 rounded-2xl border border-primary/10 p-6 shadow-sm h-fit">
+                    <div className="flex items-center justify-between mb-6">
+                      <h2 className="text-xl font-bold">{isEditingPartner ? 'Edit Profile' : 'New Partnership'}</h2>
+                      <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                        <span className="material-symbols-outlined text-sm">{isEditingPartner ? 'edit_note' : 'add_link'}</span>
+                      </div>
+                    </div>
+                    
+                    <form className="space-y-4" onSubmit={handlePartnerSubmit}>
+                      <div className="flex justify-center mb-6">
+                        <div className="relative group cursor-pointer" onClick={() => document.getElementById('partner-logo').click()}>
+                          <div className="size-24 rounded-2xl bg-slate-50 dark:bg-slate-900 border-2 border-dashed border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center overflow-hidden transition-all group-hover:border-primary/40">
+                            {partnerForm.logo ? (
+                              <img src={partnerForm.logo} alt="Preview" className="w-full h-full object-contain" />
+                            ) : (
+                              <>
+                                <span className="material-symbols-outlined text-slate-300 text-3xl">add_photo_alternate</span>
+                                <p className="text-[8px] font-black text-slate-400 mt-1 uppercase tracking-tighter">Identity Logo</p>
+                              </>
+                            )}
+                          </div>
+                          <input id="partner-logo" type="file" hidden accept="image/*" onChange={handlePartnerLogoUpload} />
+                          <div className="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-2xl">
+                            <span className="material-symbols-outlined text-white">upload</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Legal Entity Name</label>
+                        <input
+                          type="text"
+                          required
+                          value={partnerForm.name}
+                          onChange={(e) => setPartnerForm(prev => ({ ...prev, name: e.target.value }))}
+                          className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20"
+                          placeholder="e.g. UN Women Sierra Leone"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Category</label>
+                          <select
+                            value={partnerForm.type}
+                            onChange={(e) => setPartnerForm(prev => ({ ...prev, type: e.target.value }))}
+                            className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20"
+                          >
+                            <option value="NGO">Non-Governmental</option>
+                            <option value="Corporate">Corporate / Private</option>
+                            <option value="Government">Government / Agency</option>
+                            <option value="Media">Media / Broadcast</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Status</label>
+                          <select
+                            value={partnerForm.status}
+                            onChange={(e) => setPartnerForm(prev => ({ ...prev, status: e.target.value }))}
+                            className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20"
+                          >
+                            <option value="Active">Operational</option>
+                            <option value="Pending">On-Boarding</option>
+                            <option value="Inactive">Paused</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Contact Primary</label>
+                        <input
+                          type="text"
+                          value={partnerForm.contact_person}
+                          onChange={(e) => setPartnerForm(prev => ({ ...prev, contact_person: e.target.value }))}
+                          className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20"
+                          placeholder="Focal Point Name"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <input
+                          type="email"
+                          value={partnerForm.email}
+                          onChange={(e) => setPartnerForm(prev => ({ ...prev, email: e.target.value }))}
+                          className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-2.5 text-xs focus:ring-2 focus:ring-primary/20"
+                          placeholder="official@email.com"
+                        />
+                        <input
+                          type="tel"
+                          value={partnerForm.phone}
+                          onChange={(e) => setPartnerForm(prev => ({ ...prev, phone: e.target.value }))}
+                          className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-2.5 text-xs focus:ring-2 focus:ring-primary/20"
+                          placeholder="+232 Phone Number"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Agreement Date</label>
+                        <input
+                          type="date"
+                          value={partnerForm.agreement_date}
+                          onChange={(e) => setPartnerForm(prev => ({ ...prev, agreement_date: e.target.value }))}
+                          className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20"
+                        />
+                      </div>
+
+                      <div className="flex gap-2 pt-2">
+                        <button
+                          type="submit"
+                          disabled={submitting}
+                          className="flex-1 py-3 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
+                        >
+                          {submitting ? 'Syncing...' : isEditingPartner ? 'Update Partnership' : 'Seal Partnership'}
+                        </button>
+                        {isEditingPartner && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsEditingPartner(false);
+                              setCurrentPartnerId(null);
+                              setPartnerForm({ name: '', logo: '', type: 'NGO', contact_person: '', email: '', phone: '', status: 'Active', agreement_date: new Date().toISOString().split('T')[0], notes: '' });
+                            }}
+                            className="px-4 py-3 border border-slate-200 text-slate-500 font-bold rounded-xl hover:bg-slate-50 transition-all"
+                          >
+                            Cancel
+                          </button>
+                        )}
+                      </div>
+                    </form>
+                  </div>
+                </>
+              ) : activeSection === 'social' ? (
+                <>
+                  <div className="lg:col-span-2 flex flex-col bg-white dark:bg-slate-800/40 rounded-3xl border border-primary/10 p-4 md:p-8 shadow-sm">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-8">
+                       <div className="size-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
+                          <span className="material-symbols-outlined text-2xl">share_reviews</span>
+                       </div>
+                       <div>
+                          <h2 className="text-2xl font-black">Social Nexus</h2>
+                          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Omni-Channel Sync</p>
+                       </div>
+                    </div>
+
+                    <div className="space-y-6">
+                       <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Broadcast Registry</h3>
+                       <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+                          {socialPosts.length === 0 && (
+                            <div className="py-20 text-center">
+                               <span className="material-symbols-outlined text-5xl text-slate-200 mb-4">public_off</span>
+                               <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest italic">No social synchronizations recorded.</p>
+                            </div>
+                          )}
+                          {socialPosts.map((post) => (
+                            <div key={post.id} className="p-4 bg-slate-50 dark:bg-slate-900/40 rounded-2xl border border-primary/5 hover:border-primary/20 transition-all group">
+                               <div className="flex justify-between items-start mb-3">
+                                  <div className="flex items-center gap-2">
+                                     <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                                        <span className="material-symbols-outlined text-sm">person</span>
+                                     </div>
+                                     <div>
+                                        <div className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tighter">{post.full_name || post.username}</div>
+                                        <div className="text-[9px] text-slate-400 font-bold">{new Date(post.created_at).toLocaleString()}</div>
+                                     </div>
+                                  </div>
+                                  <div className="flex gap-1">
+                                     {post.platforms.map(p => (
+                                        <span key={p} className="px-1.5 py-0.5 bg-white dark:bg-slate-800 border border-primary/10 rounded text-[8px] font-black text-primary uppercase tracking-tight">{p}</span>
+                                     ))}
+                                  </div>
+                               </div>
+                               <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-medium">{post.content}</p>
+                               {post.image && (
+                                 <div className="mt-4 rounded-xl overflow-hidden border border-primary/5 max-h-40">
+                                    <img src={post.image} alt="Broadcast Attachment" className="w-full h-full object-cover" />
+                                 </div>
+                               )}
+                            </div>
+                          ))}
+                       </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col bg-white dark:bg-slate-800/40 rounded-2xl border border-primary/10 p-6 shadow-sm h-fit sticky top-8">
+                     <div className="flex items-center justify-between mb-8">
+                        <h2 className="text-xl font-bold">Omni-Poster</h2>
+                        <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                            <span className="material-symbols-outlined text-sm">sync_alt</span>
+                        </div>
+                     </div>
+
+                     <form className="space-y-6" onSubmit={handleSocialSubmit}>
+                        <div>
+                           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Target Platforms</label>
+                           <div className="grid grid-cols-2 gap-2">
+                              {['Facebook', 'Instagram', 'X / Twitter', 'LinkedIn'].map(p => {
+                                 const isSelected = socialForm.platforms.includes(p);
+                                 return (
+                                    <button 
+                                       key={p}
+                                       type="button"
+                                       onClick={() => toggleSocialPlatform(p)}
+                                       className={`flex items-center justify-between px-3 py-2.5 rounded-xl border text-[10px] font-black uppercase transition-all ${
+                                          isSelected 
+                                          ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20 scale-[1.02]' 
+                                          : 'bg-slate-50 dark:bg-slate-900 border-transparent text-slate-500 hover:border-primary/20'
+                                       }`}
+                                    >
+                                       {p}
+                                       {isSelected && <span className="material-symbols-outlined text-[14px]">check_circle</span>}
+                                    </button>
+                                 );
+                              })}
+                           </div>
+                        </div>
+
+                        <div>
+                           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Content Blueprint</label>
+                           <textarea 
+                              required
+                              value={socialForm.content}
+                              onChange={(e) => setSocialForm(prev => ({ ...prev, content: e.target.value }))}
+                              className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-primary/20 min-h-[160px] resize-none"
+                              placeholder="Draft your global broadcast message here..."
+                           />
+                        </div>
+
+                        <div>
+                           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Visual Asset</label>
+                           <div 
+                              className="relative group h-48 rounded-2xl border-2 border-dashed border-primary/10 flex flex-col items-center justify-center overflow-hidden hover:border-primary/40 cursor-pointer transition-all"
+                              onClick={() => document.getElementById('social-image').click()}
+                           >
+                              {socialForm.image ? (
+                                 <img src={socialForm.image} alt="Preview" className="w-full h-full object-cover" />
+                              ) : (
+                                 <>
+                                    <span className="material-symbols-outlined text-3xl text-slate-300">add_photo_alternate</span>
+                                    <p className="text-[9px] font-black text-slate-400 mt-2 uppercase tracking-widest">Attach Media</p>
+                                 </>
+                              )}
+                              <input 
+                                 id="social-image" 
+                                 type="file" 
+                                 hidden 
+                                 accept="image/*" 
+                                 onChange={(e) => {
+                                    const file = e.target.files[0];
+                                    if (file) {
+                                       const reader = new FileReader();
+                                       reader.onloadend = () => setSocialForm(prev => ({ ...prev, image: reader.result }));
+                                       reader.readAsDataURL(file);
+                                    }
+                                 }} 
+                              />
+                           </div>
+                        </div>
+
+                        <button 
+                           type="submit"
+                           disabled={submitting}
+                           className="w-full py-4 bg-primary text-white font-bold rounded-2xl shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                           {submitting ? (
+                              <div className="size-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                           ) : (
+                              <>
+                                 <span className="material-symbols-outlined text-sm">rocket_launch</span>
+                                 Synchronize Broadcast
+                              </>
+                           )}
+                        </button>
+                     </form>
+                  </div>
+                </>
+              ) : activeSection === 'settings' ? (
+                <>
+                  <div className="lg:col-span-1 flex flex-col items-center bg-white dark:bg-slate-800/40 rounded-2xl border border-primary/10 p-8 shadow-sm h-fit">
+                    <div className="relative group overflow-hidden rounded-3xl size-32 bg-primary/10 border-2 border-primary/20">
+                      {user?.profile_picture ? (
+                        <img src={user.profile_picture} alt="Profile" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <span className="material-symbols-outlined text-4xl text-primary/40">person</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="mt-6 text-center">
+                      <h3 className="text-xl font-bold">{user?.full_name || user?.username}</h3>
+                      <p className="text-sm text-primary font-bold uppercase tracking-widest mt-1">{user?.role}</p>
+                    </div>
+                    
+                    {!isEditing && (
+                      <button
+                        onClick={() => setIsEditing(true)}
+                        className="mt-8 w-full py-3 rounded-xl bg-primary/10 text-primary font-bold hover:bg-primary/20 transition-all flex items-center justify-center gap-2"
+                      >
+                        <span className="material-symbols-outlined text-sm">edit</span>
+                        Edit Profile
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="lg:col-span-2 bg-white dark:bg-slate-800/40 rounded-2xl border border-primary/10 p-8 shadow-sm">
+                    {!isEditing ? (
+                      <div className="space-y-8">
+                        <div>
+                          <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+                            <span className="material-symbols-outlined text-primary">badge</span>
+                            Profile Overview
+                          </h2>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div>
+                              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Full Name</p>
+                              <p className="text-slate-900 dark:text-slate-100 font-medium">{user?.full_name || 'Not set'}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Email Address</p>
+                              <p className="text-slate-900 dark:text-slate-100 font-medium">{user?.user_email || 'Not set'}</p>
+                            </div>
+                            <div className="md:col-span-2">
+                              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Professional Bio</p>
+                              <p className="text-slate-600 dark:text-slate-400 leading-relaxed whitespace-pre-line">
+                                {user?.bio || 'You haven\'t added a bio yet. Click edit to tell the team about yourself.'}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                        <div className="flex items-center justify-between mb-8">
+                          <h2 className="text-2xl font-bold flex items-center gap-2">
+                            <span className="material-symbols-outlined text-primary">person_edit</span>
+                            Edit Personal Details
+                          </h2>
+                          <button 
+                            onClick={() => {
+                              setIsEditing(false);
+                              setProfileForm({
+                                full_name: user?.full_name || '',
+                                user_email: user?.user_email || '',
+                                bio: user?.bio || '',
+                                profile_picture: user?.profile_picture || ''
+                              });
+                            }}
+                            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                          >
+                            <span className="material-symbols-outlined">close</span>
+                          </button>
+                        </div>
+
+                        <form className="space-y-6" onSubmit={updateProfile}>
+                          <div className="flex items-center gap-6 mb-8 p-4 bg-primary/5 rounded-2xl border border-primary/10">
+                            <div className="relative group cursor-pointer size-20 rounded-2xl bg-white dark:bg-slate-900 border-2 border-dashed border-primary/30 overflow-hidden flex items-center justify-center">
+                              {profileForm.profile_picture ? (
+                                <img src={profileForm.profile_picture} alt="Preview" className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="material-symbols-outlined text-primary/40">add_a_photo</span>
+                              )}
+                              <div className="absolute inset-0 bg-primary/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <span className="material-symbols-outlined text-white text-xs">upload</span>
+                              </div>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleImageUpload}
+                                className="absolute inset-0 opacity-0 cursor-pointer"
+                              />
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold mb-1">Update Profile Picture</p>
+                              <p className="text-xs text-slate-500">Recommended size: 400x400 JPG/PNG (Max 1MB)</p>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="md:col-span-1">
+                              <label className="block text-sm font-semibold text-slate-600 dark:text-slate-300 mb-2">Full Name</label>
+                              <input
+                                type="text"
+                                value={profileForm.full_name}
+                                onChange={(e) => setProfileForm(p => ({ ...p, full_name: e.target.value }))}
+                                className="w-full rounded-xl border border-slate-200 p-3 bg-slate-50 dark:bg-slate-900/50 dark:border-slate-700 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-sm"
+                                placeholder="Your official name"
+                              />
+                            </div>
+                            <div className="md:col-span-1">
+                              <label className="block text-sm font-semibold text-slate-600 dark:text-slate-300 mb-2">Email Address</label>
+                              <input
+                                type="email"
+                                value={profileForm.user_email}
+                                onChange={(e) => setProfileForm(p => ({ ...p, user_email: e.target.value }))}
+                                className="w-full rounded-xl border border-slate-200 p-3 bg-slate-50 dark:bg-slate-900/50 dark:border-slate-700 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-sm"
+                                placeholder="admin@nyapuiradio.sl"
+                              />
+                            </div>
+                            <div className="md:col-span-2">
+                              <label className="block text-sm font-semibold text-slate-600 dark:text-slate-300 mb-2">Professional Bio</label>
+                              <textarea
+                                rows="4"
+                                value={profileForm.bio}
+                                onChange={(e) => setProfileForm(p => ({ ...p, bio: e.target.value }))}
+                                className="w-full rounded-xl border border-slate-200 p-3 bg-slate-50 dark:bg-slate-900/50 dark:border-slate-700 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none shadow-sm"
+                                placeholder="Short description about your role and responsibilities..."
+                              />
+                            </div>
+                          </div>
+                          
+                          <div className="flex gap-4 pt-4">
+                            <button
+                              type="submit"
+                              disabled={submitting}
+                              className="flex-1 bg-primary text-white py-3 rounded-xl font-bold hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-primary/25 disabled:opacity-60 flex items-center justify-center gap-2"
+                            >
+                              {submitting ? 'Updating...' : 'Save Changes'}
+                              <span className="material-symbols-outlined text-sm">save</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsEditing(false);
+                                setProfileForm({
+                                  full_name: user?.full_name || '',
+                                  user_email: user?.user_email || '',
+                                  bio: user?.bio || '',
+                                  profile_picture: user?.profile_picture || ''
+                                });
+                              }}
+                              className="px-8 py-3 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-all active:scale-[0.98]"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="lg:col-span-3 py-20 text-center">
+                  <p className="text-slate-500">Feature coming soon: {activeSection}</p>
+                </div>
+              )}
+
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+};
+
+
+export default Dashboard;
+
