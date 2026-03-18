@@ -117,6 +117,23 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
   const [socialForm, setSocialForm] = useState({ content: '', image: '', platforms: ['Facebook', 'Instagram'] });
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // Staff States
+  const [staffList, setStaffList] = useState([]);
+  const [staffForm, setStaffForm] = useState({
+    full_name: '',
+    role: '',
+    email: '',
+    phone: '',
+    image: '',
+    bio: '',
+    status: 'Active',
+    joined_date: new Date().toISOString().split('T')[0]
+  });
+  const [staffSearch, setStaffSearch] = useState('');
+  const [staffStatusFilter, setStaffStatusFilter] = useState('All');
+  const [isEditingStaff, setIsEditingStaff] = useState(false);
+  const [currentStaffId, setCurrentStaffId] = useState(null);
+
   // Programs States
   const [programs, setPrograms] = useState([]);
   const [programForm, setProgramForm] = useState({
@@ -349,6 +366,76 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
     } catch (err) { console.error(err); }
   }, [token]);
 
+  const fetchStaff = useCallback(async () => {
+    try {
+      const resp = await fetch(`${API_URL}/api/staff`, { headers: { Authorization: `Bearer ${token}` } });
+      if (resp.ok) setStaffList(await resp.json());
+    } catch (err) { console.error(err); }
+  }, [token]);
+
+  const handleStaffSubmit = async (e) => {
+    e.preventDefault();
+    if (!staffForm.full_name.trim() || !staffForm.role.trim() || !staffForm.email.trim()) {
+      showError('Full name, role, and email are required for staff.');
+      return;
+    }
+    setSubmitting(true);
+
+    try {
+      const method = isEditingStaff ? 'PUT' : 'POST';
+      const url = isEditingStaff ? `${API_URL}/api/staff/${currentStaffId}` : `${API_URL}/api/staff`;
+      const resp = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(staffForm)
+      });
+
+      if (!resp.ok) {
+        const errorData = await resp.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to save staff information');
+      }
+
+      setStaffForm({ full_name: '', role: '', email: '', phone: '', image: '', bio: '', status: 'Active', joined_date: new Date().toISOString().split('T')[0] });
+      setIsEditingStaff(false);
+      setCurrentStaffId(null);
+      showSuccess('Staff profile saved successfully.', 'Staff Saved');
+      fetchStaff();
+    } catch (err) {
+      showError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleStaffDelete = async (id) => {
+    if (!window.confirm('Delete this staff profile? This action cannot be undone.')) return;
+    try {
+      const resp = await fetch(`${API_URL}/api/staff/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+      if (resp.ok) {
+        showSuccess('Staff profile removed.', 'Staff Deleted');
+        fetchStaff();
+      } else {
+        const errorData = await resp.json().catch(() => ({}));
+        showError(errorData.error || 'Failed to delete staff');
+      }
+    } catch (err) {
+      showError('Network error while deleting staff');
+    }
+  };
+
+  const handleStaffImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 512 * 1024) {
+        showError('Image exceeds 512KB.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => setStaffForm(prev => ({ ...prev, image: reader.result }));
+      reader.readAsDataURL(file);
+    }
+  };
+
   useEffect(() => {
     fetchStations();
     fetchDonors();
@@ -387,7 +474,10 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
       fetchServices();
       fetchServiceBookings();
     }
-  }, [activeSection, currentFolderId, fetchFolders, fetchMediaFiles, fetchMediaStats, fetchAuditLogs, fetchTasks, fetchUsers, fetchPartners, fetchAnalyticsSummary, fetchSocialHistory, fetchPrograms, fetchServices, fetchServiceBookings]);
+    if (activeSection === 'staff') {
+      fetchStaff();
+    }
+  }, [activeSection, currentFolderId, fetchFolders, fetchMediaFiles, fetchMediaStats, fetchAuditLogs, fetchTasks, fetchUsers, fetchPartners, fetchAnalyticsSummary, fetchSocialHistory, fetchPrograms, fetchServices, fetchServiceBookings, fetchStaff]);
 
 
   useEffect(() => {
@@ -1949,6 +2039,160 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
                              </div>
                           )}
                        </div>
+                    </div>
+                  </div>
+                </>
+              ) : activeSection === 'staff' ? (
+                <>
+                  <div className="lg:col-span-3 flex flex-col gap-6">
+                    <div className="bg-white dark:bg-slate-800/40 rounded-3xl border border-primary/10 p-6 shadow-sm overflow-hidden relative">
+                      <div className="absolute top-0 right-0 p-8 opacity-5">
+                        <span className="material-symbols-outlined text-[120px]">badge</span>
+                      </div>
+                      <div className="relative flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                        <div>
+                          <h2 className="text-3xl font-black text-slate-900 dark:text-white">Staff Directory</h2>
+                          <p className="text-sm text-slate-500 font-medium mt-1">Manage staff profiles and full contact details</p>
+                        </div>
+                        <div className="flex gap-3">
+                          <button
+                            onClick={() => {
+                              setIsEditingStaff(false);
+                              setStaffForm({
+                                full_name: '', role: '', email: '', phone: '', image: '', bio: '', status: 'Active', joined_date: new Date().toISOString().split('T')[0]
+                              });
+                            }}
+                            className="px-6 py-3 bg-primary text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
+                          >
+                            <span className="material-symbols-outlined text-sm">add</span>
+                            New Staff
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="mt-8 flex flex-col lg:flex-row gap-4 items-center border-t border-primary/5 pt-6">
+                        <div className="relative flex-1 w-full">
+                          <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
+                          <input
+                            type="text"
+                            placeholder="Search staff..."
+                            value={staffSearch}
+                            onChange={(e) => setStaffSearch(e.target.value)}
+                            className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl pl-12 pr-4 py-3 text-xs focus:ring-2 focus:ring-primary/20 font-medium"
+                          />
+                        </div>
+                        <div className="flex gap-3 w-full lg:w-auto">
+                          <select
+                            value={staffStatusFilter}
+                            onChange={(e) => setStaffStatusFilter(e.target.value)}
+                            className="bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 focus:ring-2 focus:ring-primary/20 cursor-pointer"
+                          >
+                            <option value="All">All Statuses</option>
+                            <option value="Active">Active</option>
+                            <option value="Inactive">Inactive</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                      <div className="lg:col-span-2 space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {staffList
+                            .filter(s => staffStatusFilter === 'All' || s.status === staffStatusFilter)
+                            .filter(s => s.full_name.toLowerCase().includes(staffSearch.toLowerCase()) || s.role.toLowerCase().includes(staffSearch.toLowerCase()) || s.email.toLowerCase().includes(staffSearch.toLowerCase()))
+                            .map(s => (
+                              <div key={s.id} className="bg-white dark:bg-slate-800/40 rounded-3xl border border-primary/10 p-5 shadow-sm group hover:border-primary/30 transition-all flex flex-col">
+                                <div className="flex items-start gap-4 h-full">
+                                  <div className="size-16 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-primary/5 flex items-center justify-center overflow-hidden shrink-0">
+                                    {s.image ? <img src={s.image} alt={s.full_name} className="w-full h-full object-cover" /> : <span className="material-symbols-outlined text-primary/30 text-3xl">person</span>}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex justify-between items-start">
+                                      <h3 className="font-bold text-slate-900 dark:text-white truncate pr-2">{s.full_name}</h3>
+                                      <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-tighter shrink-0 ${s.status === 'Active' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-rose-500/10 text-rose-600'}`}>{s.status}</span>
+                                    </div>
+                                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">{s.role}</p>
+                                    <p className="text-xs text-slate-600 dark:text-slate-400 mt-2 line-clamp-2">{s.bio||'No bio available.'}</p>
+                                    <p className="text-[10px] text-slate-400 mt-1">{s.email} {s.phone ? `• ${s.phone}` : ''}</p>
+                                  </div>
+                                </div>
+                                <div className="mt-4 pt-4 border-t border-primary/5 flex items-center justify-between">
+                                  <div className="text-[10px] font-black text-slate-500">Joined: {s.joined_date?.slice(0,10)}</div>
+                                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button onClick={() => { setStaffForm(s); setIsEditingStaff(true); setCurrentStaffId(s.id); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="p-1.5 text-primary hover:bg-primary/10 rounded-lg transition-colors"><span className="material-symbols-outlined text-sm">edit</span></button>
+                                    <button onClick={() => handleStaffDelete(s.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"><span className="material-symbols-outlined text-sm">delete</span></button>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          {staffList.length === 0 && <div className="col-span-full py-20 bg-slate-50 dark:bg-slate-900/40 rounded-3xl border-2 border-dashed border-primary/10 flex flex-col items-center"><span className="material-symbols-outlined text-5xl text-slate-300 mb-4 font-thin">badge</span><p className="font-bold text-slate-500 uppercase text-[10px] tracking-widest">No staff members found</p></div>}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col bg-white dark:bg-slate-800/40 rounded-3xl border border-primary/10 p-6 shadow-sm h-fit sticky top-8">
+                        <div className="flex items-center justify-between mb-8">
+                          <div>
+                            <h2 className="text-xl font-black">{isEditingStaff ? 'Edit Staff Profile' : 'Create Staff Profile'}</h2>
+                            <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1">Full staff detail capture</p>
+                          </div>
+                          {isEditingStaff && <button onClick={() => { setIsEditingStaff(false); setCurrentStaffId(null); setStaffForm({ full_name: '', role: '', email: '', phone: '', image: '', bio: '', status: 'Active', joined_date: new Date().toISOString().split('T')[0] }); }} className="text-[10px] text-rose-500 font-black uppercase tracking-widest hover:underline">Cancel</button>}
+                        </div>
+
+                        <form className="space-y-6" onSubmit={handleStaffSubmit}>
+                          <div className="flex justify-center">
+                            <div className="relative group size-28 rounded-3xl border-2 border-dashed border-primary/10 flex flex-col items-center justify-center overflow-hidden hover:border-primary/40 cursor-pointer transition-all bg-slate-50 dark:bg-slate-900" onClick={() => document.getElementById('staff-image').click()}>
+                              {staffForm.image ? <img src={staffForm.image} alt="Profile" className="w-full h-full object-cover" /> : <><span className="material-symbols-outlined text-3xl text-primary/30">add_a_photo</span><p className="text-[8px] font-black text-slate-400 mt-2 uppercase tracking-widest text-center px-2">Staff Image</p></>}
+                              <input id="staff-image" type="file" hidden accept="image/*" onChange={handleStaffImageUpload} />
+                              <div className="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-3xl"><span className="material-symbols-outlined text-white">upload</span></div>
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Full Name</label>
+                            <input type="text" required value={staffForm.full_name} onChange={(e) => setStaffForm(prev => ({ ...prev, full_name: e.target.value }))} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 font-bold" placeholder="e.g. Jane Doe" />
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Role</label>
+                              <input type="text" required value={staffForm.role} onChange={(e) => setStaffForm(prev => ({ ...prev, role: e.target.value }))} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 font-bold" placeholder="e.g. Program Manager" />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Email</label>
+                              <input type="email" required value={staffForm.email} onChange={(e) => setStaffForm(prev => ({ ...prev, email: e.target.value }))} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 font-bold" placeholder="name@company.com" />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Phone</label>
+                              <input type="tel" value={staffForm.phone} onChange={(e) => setStaffForm(prev => ({ ...prev, phone: e.target.value }))} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 font-bold" placeholder="+123456789" />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Joined Date</label>
+                              <input type="date" value={staffForm.joined_date} onChange={(e) => setStaffForm(prev => ({ ...prev, joined_date: e.target.value }))} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 font-bold" />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Bio</label>
+                            <textarea value={staffForm.bio} onChange={(e) => setStaffForm(prev => ({ ...prev, bio: e.target.value }))} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 font-bold resize-none" rows="3" placeholder="Short staff biography..." />
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Status</label>
+                            <select value={staffForm.status} onChange={(e) => setStaffForm(prev => ({ ...prev, status: e.target.value }))} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 font-bold">
+                              <option value="Active">Active</option>
+                              <option value="Inactive">Inactive</option>
+                            </select>
+                          </div>
+
+                          <button type="submit" disabled={submitting} className="w-full bg-primary text-white py-3 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-primary/90 transition-colors">
+                            {isEditingStaff ? 'Update Staff' : 'Add Staff'}
+                          </button>
+                        </form>
+                      </div>
                     </div>
                   </div>
                 </>

@@ -824,6 +824,76 @@ app.put('/api/service-bookings/:id', authenticate, async (req, res) => {
   }
 });
 
+// ─── STAFF ROUTES ───────────────────────────────────────────────────────────
+app.get('/api/staff', authenticate, async (req, res) => {
+  try {
+    const rows = await db.all('SELECT * FROM staff ORDER BY full_name ASC;');
+    res.json(rows);
+  } catch (err) {
+    console.error('GET /api/staff error', err);
+    res.status(500).json({ error: 'Error fetching staff' });
+  }
+});
+
+app.get('/api/staff/:id', authenticate, async (req, res) => {
+  try {
+    const row = await db.get('SELECT * FROM staff WHERE id = ?', [req.params.id]);
+    if (!row) return res.status(404).json({ error: 'Staff not found' });
+    res.json(row);
+  } catch (err) {
+    res.status(500).json({ error: 'Error fetching staff member' });
+  }
+});
+
+app.post('/api/staff', authenticate, async (req, res) => {
+  const { full_name, role, email, phone, image, bio, status, joined_date } = req.body;
+  if (!full_name || !role || !email) {
+    return res.status(400).json({ error: 'Full name, role, and email are required' });
+  }
+  try {
+    const result = await db.run(
+      'INSERT INTO staff (full_name, role, email, phone, image, bio, status, joined_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [full_name, role, email, phone, image, bio, status || 'Active', joined_date || new Date().toISOString().split('T')[0]]
+    );
+    await logAction(req.userId, 'CREATE_STAFF', `Created staff member: ${full_name}`, 'staff', result.lastID);
+    res.status(201).json({ id: result.lastID, full_name, role, email, phone, image, bio, status, joined_date });
+  } catch (err) {
+    console.error('POST /api/staff error', err);
+    res.status(500).json({ error: 'Error creating staff member' });
+  }
+});
+
+app.put('/api/staff/:id', authenticate, async (req, res) => {
+  const { id } = req.params;
+  const { full_name, role, email, phone, image, bio, status, joined_date } = req.body;
+  if (!full_name || !role || !email) {
+    return res.status(400).json({ error: 'Full name, role, and email are required' });
+  }
+  try {
+    const result = await db.run(
+      'UPDATE staff SET full_name = ?, role = ?, email = ?, phone = ?, image = ?, bio = ?, status = ?, joined_date = ? WHERE id = ?',
+      [full_name, role, email, phone, image, bio, status || 'Active', joined_date, id]
+    );
+    if (result.changes === 0) return res.status(404).json({ error: 'Staff not found' });
+    await logAction(req.userId, 'UPDATE_STAFF', `Updated staff member: ${full_name}`, 'staff', id);
+    res.json({ message: 'Staff updated successfully' });
+  } catch (err) {
+    res.status(500).json({ error: 'Error updating staff member' });
+  }
+});
+
+app.delete('/api/staff/:id', authenticate, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await db.run('DELETE FROM staff WHERE id = ?', [id]);
+    if (result.changes === 0) return res.status(404).json({ error: 'Staff not found' });
+    await logAction(req.userId, 'DELETE_STAFF', `Deleted staff member ID: ${id}`, 'staff', id);
+    res.json({ message: 'Staff removed successfully' });
+  } catch (err) {
+    res.status(500).json({ error: 'Error deleting staff member' });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Server listening on http://localhost:${PORT}`);
 });
