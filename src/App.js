@@ -4,6 +4,7 @@ import Dashboard from './components/superadmin/dashboard';
 import Login from './components/superadmin/login';
 import Loading from './components/superadmin/loading';
 import Modal from './components/common/Modal';
+import Home from './components/home/home';
 import Logo from './components/common/Logo';
 import API_URL from './config';
 
@@ -180,50 +181,7 @@ function App() {
   const isSuperadminRoute = window.location.pathname.startsWith('/superadmin');
 
   if (!isSuperadminRoute) {
-    return (
-      <div className="min-h-screen bg-background-light dark:bg-background-dark text-slate-900 dark:text-white flex flex-col">
-        <header className="w-full py-6 shadow-sm border-b border-slate-200 dark:border-slate-800 px-8 flex justify-between items-center">
-          <h1 className="text-3xl font-black">Nyapui Radio</h1>
-          <button
-            onClick={() => { window.location.href = '/superadmin'; }}
-            className="px-6 py-2 bg-primary text-white font-bold rounded-lg"
-          >
-            Admin Login
-          </button>
-        </header>
-
-        <main className="flex-1 p-8 flex flex-col items-center justify-center gap-8">
-          <div className="max-w-4xl text-center">
-            <h2 className="text-5xl font-black mb-4">Welcome to Nyapui Radio</h2>
-            <p className="text-lg text-slate-600 dark:text-slate-300">Explore live stories, programs, and community media for local and international voices.</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-6xl">
-            <div className="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm">
-              <h3 className="text-xl font-bold mb-2">Local News</h3>
-              <p className="text-sm text-slate-500 dark:text-slate-400">Stay connected with community stories.</p>
-            </div>
-            <div className="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm">
-              <h3 className="text-xl font-bold mb-2">International News</h3>
-              <p className="text-sm text-slate-500 dark:text-slate-400">Global headlines with local perspective.</p>
-            </div>
-            <div className="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm">
-              <h3 className="text-xl font-bold mb-2">Podcasts & Videos</h3>
-              <p className="text-sm text-slate-500 dark:text-slate-400">Listen and watch exclusive programs.</p>
-            </div>
-          </div>
-
-          <button
-            onClick={() => { window.location.href = '/superadmin'; }}
-            className="px-8 py-3 bg-primary text-white font-bold rounded-full text-lg"
-          >
-            Open Admin Dashboard
-          </button>
-        </main>
-
-        <footer className="py-4 text-center text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800">© 2026 Nyapui Radio</footer>
-      </div>
-    );
+    return <Home />;
   }
 
   if (isLoading) return <Loading />;
