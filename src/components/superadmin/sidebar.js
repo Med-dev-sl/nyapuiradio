@@ -6,6 +6,7 @@ const navItems = [
   { key: 'tasks', label: 'Tasks', icon: 'task_alt' },
   { key: 'broadcasts', label: 'Broadcasts', icon: 'broadcast_on_home' },
   { key: 'programs', label: 'Programs', icon: 'calendar_month' },
+  { key: 'news', label: 'News', icon: 'article' },
   { key: 'services', label: 'Services', icon: 'design_services' },
   { key: 'assets', label: 'Assets', icon: 'inventory_2' },
   { key: 'media', label: 'Media Library', icon: 'perm_media' },

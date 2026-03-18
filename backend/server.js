@@ -709,6 +709,78 @@ app.delete('/api/programs/:id', authenticate, async (req, res) => {
   }
 });
 
+// ─── NEWS ROUTES ───────────────────────────────────────────────────────────
+app.get('/api/news', authenticate, async (req, res) => {
+  try {
+    const rows = await db.all('SELECT * FROM news ORDER BY created_at DESC;');
+    res.json(rows);
+  } catch (err) {
+    console.error('GET /api/news error', err);
+    res.status(500).json({ error: 'Error fetching news' });
+  }
+});
+
+app.get('/api/news/:id', authenticate, async (req, res) => {
+  try {
+    const row = await db.get('SELECT * FROM news WHERE id = ?', [req.params.id]);
+    if (!row) return res.status(404).json({ error: 'News item not found' });
+    res.json(row);
+  } catch (err) {
+    res.status(500).json({ error: 'Error fetching news item' });
+  }
+});
+
+app.post('/api/news', authenticate, async (req, res) => {
+  const { title, category, headline, details, caption, photo, thumbnail, status } = req.body;
+  if (!title || !category || !headline) {
+    return res.status(400).json({ error: 'Title, category and headline are required' });
+  }
+  try {
+    const result = await db.run(
+      'INSERT INTO news (title, category, headline, details, caption, photo, thumbnail, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [title, category, headline, details || '', caption || '', photo || '', thumbnail || '', status || 'Draft']
+    );
+    await logAction(req.userId, 'CREATE_NEWS', `Published news: ${title}`, 'news', result.lastID);
+    res.status(201).json({ id: result.lastID, title, category, headline, status });
+  } catch (err) {
+    console.error('POST /api/news error', err);
+    res.status(500).json({ error: 'Error creating news item' });
+  }
+});
+
+app.put('/api/news/:id', authenticate, async (req, res) => {
+  const { id } = req.params;
+  const { title, category, headline, details, caption, photo, thumbnail, status } = req.body;
+  if (!title || !category || !headline) {
+    return res.status(400).json({ error: 'Title, category and headline are required' });
+  }
+  try {
+    const result = await db.run(
+      'UPDATE news SET title = ?, category = ?, headline = ?, details = ?, caption = ?, photo = ?, thumbnail = ?, status = ? WHERE id = ?',
+      [title, category, headline, details || '', caption || '', photo || '', thumbnail || '', status || 'Draft', id]
+    );
+    if (result.changes === 0) return res.status(404).json({ error: 'News item not found' });
+    await logAction(req.userId, 'UPDATE_NEWS', `Updated news: ${title}`, 'news', id);
+    res.json({ message: 'News updated successfully' });
+  } catch (err) {
+    console.error('PUT /api/news error', err);
+    res.status(500).json({ error: 'Error updating news item' });
+  }
+});
+
+app.delete('/api/news/:id', authenticate, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await db.run('DELETE FROM news WHERE id = ?', [id]);
+    if (result.changes === 0) return res.status(404).json({ error: 'News item not found' });
+    await logAction(req.userId, 'DELETE_NEWS', `Deleted news item ID: ${id}`, 'news', id);
+    res.json({ message: 'News item removed successfully' });
+  } catch (err) {
+    console.error('DELETE /api/news error', err);
+    res.status(500).json({ error: 'Error deleting news item' });
+  }
+});
+
 // ─── SERVICES ROUTES ──────────────────────────────────────────────────────────
 app.get('/api/services', async (req, res) => {
   try {

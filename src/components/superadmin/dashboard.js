@@ -174,6 +174,23 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
   const [serviceBookings, setServiceBookings] = useState([]);
   const [bookingStatusFilter, setBookingStatusFilter] = useState('All');
 
+  // News States
+  const [newsList, setNewsList] = useState([]);
+  const [newsForm, setNewsForm] = useState({
+    title: '',
+    category: 'Local',
+    headline: '',
+    details: '',
+    caption: '',
+    photo: '',
+    thumbnail: '',
+    status: 'Draft'
+  });
+  const [newsSearch, setNewsSearch] = useState('');
+  const [newsStatusFilter, setNewsStatusFilter] = useState('All');
+  const [isEditingNews, setIsEditingNews] = useState(false);
+  const [currentNewsId, setCurrentNewsId] = useState(null);
+
   const showError = (msg) => {
     setModal({
       open: true,
@@ -376,6 +393,13 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
     } catch (err) { console.error(err); }
   }, [token]);
 
+  const fetchNews = useCallback(async () => {
+    try {
+      const resp = await fetch(`${API_URL}/api/news`, { headers: { Authorization: `Bearer ${token}` } });
+      if (resp.ok) setNewsList(await resp.json());
+    } catch (err) { console.error(err); }
+  }, [token]);
+
   const handleStaffSubmit = async (e) => {
     e.preventDefault();
     if (!staffForm.full_name.trim() || !staffForm.role.trim() || !staffForm.email.trim()) {
@@ -439,6 +463,68 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
     }
   };
 
+  const handleNewsSubmit = async (e) => {
+    e.preventDefault();
+    if (!newsForm.title.trim() || !newsForm.category.trim() || !newsForm.headline.trim()) {
+      showError('Title, category, and headline are required for news.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const method = isEditingNews ? 'PUT' : 'POST';
+      const url = isEditingNews ? `${API_URL}/api/news/${currentNewsId}` : `${API_URL}/api/news`;
+      const resp = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(newsForm)
+      });
+
+      if (!resp.ok) {
+        const errorData = await resp.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to save news item');
+      }
+
+      setNewsForm({ title: '', category: 'Local', headline: '', details: '', caption: '', photo: '', thumbnail: '', status: 'Draft' });
+      setIsEditingNews(false);
+      setCurrentNewsId(null);
+      showSuccess('News item saved successfully.', 'News Saved');
+      fetchNews();
+    } catch (err) {
+      showError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleNewsDelete = async (id) => {
+    if (!window.confirm('Delete this news item? This action cannot be undone.')) return;
+    try {
+      const resp = await fetch(`${API_URL}/api/news/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+      if (resp.ok) {
+        showSuccess('News item removed.', 'News Deleted');
+        fetchNews();
+      } else {
+        const errorData = await resp.json().catch(() => ({}));
+        showError(errorData.error || 'Failed to delete news item');
+      }
+    } catch (err) {
+      showError('Network error while deleting news item');
+    }
+  };
+
+  const handleNewsImageUpload = (e, field) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 512 * 1024) {
+        showError('Image exceeds 512KB.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => setNewsForm(prev => ({ ...prev, [field]: reader.result }));
+      reader.readAsDataURL(file);
+    }
+  };
+
   useEffect(() => {
     fetchStations();
     fetchDonors();
@@ -477,10 +563,13 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
       fetchServices();
       fetchServiceBookings();
     }
+    if (activeSection === 'news') {
+      fetchNews();
+    }
     if (activeSection === 'staff') {
       fetchStaff();
     }
-  }, [activeSection, currentFolderId, fetchFolders, fetchMediaFiles, fetchMediaStats, fetchAuditLogs, fetchTasks, fetchUsers, fetchPartners, fetchAnalyticsSummary, fetchSocialHistory, fetchPrograms, fetchServices, fetchServiceBookings, fetchStaff]);
+  }, [activeSection, currentFolderId, fetchFolders, fetchMediaFiles, fetchMediaStats, fetchAuditLogs, fetchTasks, fetchUsers, fetchPartners, fetchAnalyticsSummary, fetchSocialHistory, fetchPrograms, fetchServices, fetchServiceBookings, fetchStaff, fetchNews]);
 
 
   useEffect(() => {
@@ -2042,6 +2131,168 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
                              </div>
                           )}
                        </div>
+                    </div>
+                  </div>
+                </>
+              ) : activeSection === 'news' ? (
+                <>
+                  <div className="lg:col-span-3 flex flex-col gap-6">
+                    <div className="bg-white dark:bg-slate-800/40 rounded-3xl border border-primary/10 p-6 shadow-sm overflow-hidden relative">
+                      <div className="absolute top-0 right-0 p-8 opacity-5">
+                        <span className="material-symbols-outlined text-[120px]">article</span>
+                      </div>
+                      <div className="relative flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                        <div>
+                          <h2 className="text-3xl font-black text-slate-900 dark:text-white">News Management</h2>
+                          <p className="text-sm text-slate-500 font-medium mt-1">Manage Local and International news stories</p>
+                        </div>
+                        <div className="flex gap-3">
+                          <button
+                            onClick={() => {
+                              setIsEditingNews(false);
+                              setNewsForm({ title: '', category: 'Local', headline: '', details: '', caption: '', photo: '', thumbnail: '', status: 'Draft' });
+                            }}
+                            className="px-6 py-3 bg-primary text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
+                          >
+                            <span className="material-symbols-outlined text-sm">add</span>
+                            New News
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="mt-8 flex flex-col lg:flex-row gap-4 items-center border-t border-primary/5 pt-6">
+                        <div className="relative flex-1 w-full">
+                          <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
+                          <input
+                            type="text"
+                            placeholder="Search news..."
+                            value={newsSearch}
+                            onChange={(e) => setNewsSearch(e.target.value)}
+                            className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl pl-12 pr-4 py-3 text-xs focus:ring-2 focus:ring-primary/20 font-medium"
+                          />
+                        </div>
+                        <div className="flex gap-3 w-full lg:w-auto">
+                          <select
+                            value={newsStatusFilter}
+                            onChange={(e) => setNewsStatusFilter(e.target.value)}
+                            className="bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 focus:ring-2 focus:ring-primary/20 cursor-pointer"
+                          >
+                            <option value="All">All Statuses</option>
+                            <option value="Draft">Draft</option>
+                            <option value="Published">Published</option>
+                          </select>
+                          <select
+                            value={newsForm.category}
+                            onChange={(e) => setNewsForm(prev => ({ ...prev, category: e.target.value }))}
+                            className="bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 focus:ring-2 focus:ring-primary/20 cursor-pointer"
+                          >
+                            <option value="Local">Local</option>
+                            <option value="International">International</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                      <div className="lg:col-span-2 space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {newsList
+                            .filter(n => newsStatusFilter === 'All' || n.status === newsStatusFilter)
+                            .filter(n => n.title.toLowerCase().includes(newsSearch.toLowerCase()) || n.headline.toLowerCase().includes(newsSearch.toLowerCase()) || n.details?.toLowerCase().includes(newsSearch.toLowerCase()))
+                            .map(n => (
+                              <div key={n.id} className="bg-white dark:bg-slate-800/40 rounded-3xl border border-primary/10 p-5 shadow-sm group hover:border-primary/30 transition-all flex flex-col">
+                                <div className="flex items-start gap-4 h-full">
+                                  <div className="size-16 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-primary/5 flex items-center justify-center overflow-hidden shrink-0">
+                                    {n.thumbnail ? <img src={n.thumbnail} alt={n.title} className="w-full h-full object-cover" /> : <span className="material-symbols-outlined text-primary/30 text-3xl">photo</span>}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex justify-between items-start">
+                                      <h3 className="font-bold text-slate-900 dark:text-white truncate pr-2">{n.title}</h3>
+                                      <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-tighter shrink-0 ${n.status === 'Published' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-slate-400/10 text-slate-600'}`}>{n.status}</span>
+                                    </div>
+                                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">{n.category} News</p>
+                                    <p className="text-xs text-slate-600 dark:text-slate-400 mt-2 line-clamp-2">{n.headline}</p>
+                                  </div>
+                                </div>
+                                <div className="mt-4 pt-4 border-t border-primary/5 flex items-center justify-between">
+                                  <span className="text-[10px] text-slate-500">{n.caption || 'No caption'}</span>
+                                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button onClick={() => { setNewsForm(n); setIsEditingNews(true); setCurrentNewsId(n.id); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="p-1.5 text-primary hover:bg-primary/10 rounded-lg transition-colors"><span className="material-symbols-outlined text-sm">edit</span></button>
+                                    <button onClick={() => handleNewsDelete(n.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"><span className="material-symbols-outlined text-sm">delete</span></button>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          {newsList.length === 0 && <div className="col-span-full py-20 bg-slate-50 dark:bg-slate-900/40 rounded-3xl border-2 border-dashed border-primary/10 flex flex-col items-center"><span className="material-symbols-outlined text-5xl text-slate-300 mb-4 font-thin">article</span><p className="font-bold text-slate-500 uppercase text-[10px] tracking-widest">No news items found</p></div>}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col bg-white dark:bg-slate-800/40 rounded-3xl border border-primary/10 p-6 shadow-sm h-fit sticky top-8">
+                        <div className="flex items-center justify-between mb-8">
+                          <div>
+                            <h2 className="text-xl font-black">{isEditingNews ? 'Edit News' : 'Create News'}</h2>
+                            <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1">Publish local / international news</p>
+                          </div>
+                          {isEditingNews && <button onClick={() => { setIsEditingNews(false); setCurrentNewsId(null); setNewsForm({ title: '', category: 'Local', headline: '', details: '', caption: '', photo: '', thumbnail: '', status: 'Draft' }); }} className="text-[10px] text-rose-500 font-black uppercase tracking-widest hover:underline">Cancel</button>}
+                        </div>
+
+                        <form className="space-y-6" onSubmit={handleNewsSubmit}>
+                          <div>
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Headline</label>
+                            <input type="text" required value={newsForm.headline} onChange={(e) => setNewsForm(prev => ({ ...prev, headline: e.target.value }))} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 font-bold" placeholder="Short headline" />
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Title</label>
+                            <input type="text" required value={newsForm.title} onChange={(e) => setNewsForm(prev => ({ ...prev, title: e.target.value }))} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 font-bold" placeholder="Full news title" />
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Category</label>
+                            <select value={newsForm.category} onChange={(e) => setNewsForm(prev => ({ ...prev, category: e.target.value }))} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 font-bold">
+                              <option value="Local">Local</option>
+                              <option value="International">International</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Details</label>
+                            <textarea value={newsForm.details} onChange={(e) => setNewsForm(prev => ({ ...prev, details: e.target.value }))} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 font-bold resize-none" rows="4" placeholder="Full article or summary details" />
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Caption</label>
+                            <input type="text" value={newsForm.caption} onChange={(e) => setNewsForm(prev => ({ ...prev, caption: e.target.value }))} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 font-bold" placeholder="Caption / quote" />
+                          </div>
+
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Main Photo</label>
+                              <div className="relative group size-24 rounded-2xl border-2 border-dashed border-primary/10 flex items-center justify-center overflow-hidden cursor-pointer bg-slate-50 dark:bg-slate-900" onClick={() => document.getElementById('news-photo').click()}>
+                                {newsForm.photo ? <img src={newsForm.photo} alt="News" className="w-full h-full object-cover" /> : <span className="text-slate-400 text-sm">Click to upload photo</span>}
+                                <input id="news-photo" type="file" accept="image/*" hidden onChange={(e) => handleNewsImageUpload(e, 'photo')} />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Thumbnail</label>
+                              <div className="relative group size-24 rounded-2xl border-2 border-dashed border-primary/10 flex items-center justify-center overflow-hidden cursor-pointer bg-slate-50 dark:bg-slate-900" onClick={() => document.getElementById('news-thumbnail').click()}>
+                                {newsForm.thumbnail ? <img src={newsForm.thumbnail} alt="Thumbnail" className="w-full h-full object-cover" /> : <span className="text-slate-400 text-sm">Click to upload thumbnail</span>}
+                                <input id="news-thumbnail" type="file" accept="image/*" hidden onChange={(e) => handleNewsImageUpload(e, 'thumbnail')} />
+                              </div>
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Status</label>
+                            <select value={newsForm.status} onChange={(e) => setNewsForm(prev => ({ ...prev, status: e.target.value }))} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 font-bold">
+                              <option value="Draft">Draft</option>
+                              <option value="Published">Published</option>
+                            </select>
+                          </div>
+
+                          <button type="submit" className="w-full bg-primary text-white py-3 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-primary/90 transition-colors">{isEditingNews ? 'Update News' : 'Publish News'}</button>
+                        </form>
+                      </div>
                     </div>
                   </div>
                 </>
