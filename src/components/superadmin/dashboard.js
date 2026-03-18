@@ -4,6 +4,39 @@ import Modal from '../common/Modal';
 import Loading from './loading';
 import API_URL from '../../config';
 
+// Program constants
+const categories = [
+  'News & Current Affairs',
+  'Music & Entertainment',
+  'Talk Shows',
+  'Sports',
+  'Education',
+  'Health & Wellness',
+  'Religion & Spirituality',
+  'Community',
+  'Politics',
+  'Business & Finance',
+  'Technology',
+  'Culture & Arts',
+  'Youth Programs',
+  'Women\'s Programs',
+  'Children\'s Programs',
+  'Documentary',
+  'Live Events',
+  'Interviews',
+  'Other'
+];
+
+const programDays = [
+  'Monday',
+  'Tuesday', 
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+  'Sunday'
+];
+
 const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
   const [activeSection, setActiveSection] = useState('dashboard');
   const [, setStations] = useState([]);
@@ -83,6 +116,27 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
   const [socialPosts, setSocialPosts] = useState([]);
   const [socialForm, setSocialForm] = useState({ content: '', image: '', platforms: ['Facebook', 'Instagram'] });
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Programs States
+  const [programs, setPrograms] = useState([]);
+  const [programForm, setProgramForm] = useState({
+    title: '',
+    category: 'News & Current Affairs',
+    description: '',
+    host: '',
+    days: [],
+    start_time: '06:00',
+    end_time: '07:00',
+    status: 'Active',
+    image: '',
+    notes: ''
+  });
+  const [programSearch, setProgramSearch] = useState('');
+  const [programCategoryFilter, setProgramCategoryFilter] = useState('All');
+  const [programStatusFilter, setProgramStatusFilter] = useState('All');
+  const [isEditingProgram, setIsEditingProgram] = useState(false);
+  const [currentProgramId, setCurrentProgramId] = useState(null);
+  const [programView, setProgramView] = useState('grid'); // 'grid' | 'schedule'
 
   const showError = (msg) => {
     setModal({
@@ -258,6 +312,13 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
     } catch (err) { console.error(err); }
   }, [token, currentFolderId]);
 
+  const fetchPrograms = useCallback(async () => {
+    try {
+      const resp = await fetch(`${API_URL}/api/programs`, { headers: { Authorization: `Bearer ${token}` } });
+      if (resp.ok) setPrograms(await resp.json());
+    } catch (err) { console.error(err); }
+  }, [token]);
+
   useEffect(() => {
     fetchStations();
     fetchDonors();
@@ -289,7 +350,10 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
     if (activeSection === 'social') {
       fetchSocialHistory();
     }
-  }, [activeSection, currentFolderId, fetchFolders, fetchMediaFiles, fetchMediaStats, fetchAuditLogs, fetchTasks, fetchUsers, fetchPartners, fetchAnalyticsSummary, fetchSocialHistory]);
+    if (activeSection === 'programs') {
+      fetchPrograms();
+    }
+  }, [activeSection, currentFolderId, fetchFolders, fetchMediaFiles, fetchMediaStats, fetchAuditLogs, fetchTasks, fetchUsers, fetchPartners, fetchAnalyticsSummary, fetchSocialHistory, fetchPrograms]);
 
 
   useEffect(() => {
@@ -1077,6 +1141,73 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
       reader.onloadend = () => {
         setProfileForm(prev => ({ ...prev, profile_picture: reader.result }));
       };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Programs Handlers
+  const handleProgramSubmit = async (e) => {
+    e.preventDefault();
+    if (!programForm.title.trim() || !programForm.category || !programForm.days.length || !programForm.start_time || !programForm.end_time) {
+      showError('Please provide a title, category, frequency (days), and schedule (start/end times).');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const url = isEditingProgram ? `${API_URL}/api/programs/${currentProgramId}` : `${API_URL}/api/programs`;
+      const method = isEditingProgram ? 'PUT' : 'POST';
+      const resp = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(programForm)
+      });
+      if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({}));
+        throw new Error(errData.error || `Failed to ${isEditingProgram ? 'update' : 'save'} program`);
+      }
+      
+      setProgramForm({
+        title: '', category: 'News & Current Affairs', description: '', host: '', days: [],
+        start_time: '06:00', end_time: '07:00', status: 'Active', image: '', notes: ''
+      });
+      setIsEditingProgram(false);
+      setCurrentProgramId(null);
+      showSuccess(`Program "${programForm.title}" has been successfully ${isEditingProgram ? 'updated' : 'registered'}.`, isEditingProgram ? 'Program Updated' : 'Program Created');
+      fetchPrograms();
+    } catch (err) { showError(err.message); }
+    finally { setSubmitting(false); }
+  };
+
+  const handleProgramDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to remove this program from the schedule? This action cannot be undone.')) return;
+    try {
+      const resp = await fetch(`${API_URL}/api/programs/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (resp.ok) {
+        showSuccess('Program removed from the station schedule.', 'Program Deleted');
+        fetchPrograms();
+      }
+    } catch (err) { showError(err.message); }
+  };
+
+  const toggleProgramDay = (day) => {
+    setProgramForm(prev => ({
+      ...prev,
+      days: prev.days.includes(day) ? prev.days.filter(d => d !== day) : [...prev.days, day]
+    }));
+  };
+
+  const handleProgramImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 512 * 1024) {
+        showError('Program image exceeds size limit (512KB).');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => setProgramForm(prev => ({ ...prev, image: reader.result }));
       reader.readAsDataURL(file);
     }
   };
@@ -2796,7 +2927,337 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
                      </form>
                   </div>
                 </>
+              ) : activeSection === 'programs' ? (
+                <>
+                  <div className="lg:col-span-3 flex flex-col gap-6">
+                    {/* Programs Header & Controls */}
+                    <div className="bg-white dark:bg-slate-800/40 rounded-3xl border border-primary/10 p-6 shadow-sm overflow-hidden relative">
+                       <div className="absolute top-0 right-0 p-8 opacity-5">
+                          <span className="material-symbols-outlined text-[120px]">calendar_month</span>
+                       </div>
+                       <div className="relative flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                          <div>
+                             <h2 className="text-3xl font-black text-slate-900 dark:text-white">Broadcast Programs</h2>
+                             <p className="text-sm text-slate-500 font-medium mt-1">Schedule and manage the station's daily transmission flow</p>
+                          </div>
+                          <div className="flex gap-3">
+                             <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl">
+                                <button 
+                                   onClick={() => setProgramView('grid')}
+                                   className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${programView === 'grid' ? 'bg-white dark:bg-slate-800 text-primary shadow-sm' : 'text-slate-400'}`}
+                                >
+                                   Registry
+                                </button>
+                                <button 
+                                   onClick={() => setProgramView('schedule')}
+                                   className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${programView === 'schedule' ? 'bg-white dark:bg-slate-800 text-primary shadow-sm' : 'text-slate-400'}`}
+                                >
+                                   Schedule
+                                </button>
+                             </div>
+                             <button 
+                                onClick={() => {
+                                   setIsEditingProgram(false);
+                                   setProgramForm({
+                                      title: '', category: 'News & Current Affairs', description: '', host: '', days: [],
+                                      start_time: '06:00', end_time: '07:00', status: 'Active', image: '', notes: ''
+                                   });
+                                   // We'll show the form in a side-panel or similar. For now let's use the layout we have.
+                                }}
+                                className="px-6 py-3 bg-primary text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
+                             >
+                                <span className="material-symbols-outlined text-sm">add</span>
+                                New Program
+                             </button>
+                          </div>
+                       </div>
+
+                       <div className="mt-8 flex flex-col lg:flex-row gap-4 items-center border-t border-primary/5 pt-6">
+                          <div className="relative flex-1 w-full">
+                             <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
+                             <input 
+                                type="text" 
+                                placeholder="Search by title, host or description..."
+                                value={programSearch}
+                                onChange={(e) => setProgramSearch(e.target.value)}
+                                className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl pl-12 pr-4 py-3 text-xs focus:ring-2 focus:ring-primary/20 font-medium"
+                             />
+                          </div>
+                          <div className="flex gap-3 w-full lg:w-auto overflow-x-auto pb-2 lg:pb-0">
+                             <select 
+                                value={programCategoryFilter}
+                                onChange={(e) => setProgramCategoryFilter(e.target.value)}
+                                className="bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 focus:ring-2 focus:ring-primary/20 cursor-pointer"
+                             >
+                                <option value="All">All Categories</option>
+                                {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                             </select>
+                             <select 
+                                value={programStatusFilter}
+                                onChange={(e) => setProgramStatusFilter(e.target.value)}
+                                className="bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 focus:ring-2 focus:ring-primary/20 cursor-pointer"
+                             >
+                                <option value="All">All Statuses</option>
+                                <option value="Active">Active</option>
+                                <option value="On Break">On Break</option>
+                                <option value="Discontinued">Discontinued</option>
+                             </select>
+                          </div>
+                       </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                       <div className="lg:col-span-2 space-y-4">
+                          {programView === 'grid' ? (
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {programs
+                                   .filter(p => (programCategoryFilter === 'All' || p.category === programCategoryFilter))
+                                   .filter(p => (programStatusFilter === 'All' || p.status === programStatusFilter))
+                                   .filter(p => p.title.toLowerCase().includes(programSearch.toLowerCase()) || p.host?.toLowerCase().includes(programSearch.toLowerCase()))
+                                   .map(p => (
+                                      <div key={p.id} className="bg-white dark:bg-slate-800/40 rounded-3xl border border-primary/10 p-5 shadow-sm group hover:border-primary/30 transition-all flex flex-col">
+                                         <div className="flex items-start gap-4 h-full">
+                                            <div className="size-16 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-primary/5 flex items-center justify-center overflow-hidden shrink-0">
+                                               {p.image ? (
+                                                  <img src={p.image} alt={p.title} className="w-full h-full object-cover" />
+                                               ) : (
+                                                  <span className="material-symbols-outlined text-primary/30 text-3xl">radio</span>
+                                               )}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                               <div className="flex justify-between items-start">
+                                                  <h3 className="font-bold text-slate-900 dark:text-white truncate pr-2">{p.title}</h3>
+                                                  <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-tighter shrink-0 ${
+                                                     p.status === 'Active' ? 'bg-emerald-500/10 text-emerald-600' : 
+                                                     p.status === 'On Break' ? 'bg-amber-500/10 text-amber-600' : 'bg-rose-500/10 text-rose-600'
+                                                  }`}>{p.status}</span>
+                                               </div>
+                                               <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">{p.category} • {p.host || 'Various Hosts'}</p>
+                                               <div className="mt-3 flex flex-wrap gap-1">
+                                                  {p.days.slice(0, 3).map(day => (
+                                                     <span key={day} className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-900 rounded text-[8px] font-bold text-slate-600 capitalize">{day.substring(0,3)}</span>
+                                                  ))}
+                                                  {p.days.length > 3 && <span className="text-[8px] font-bold text-slate-400 self-center">+{p.days.length - 3}</span>}
+                                               </div>
+                                            </div>
+                                         </div>
+                                         <div className="mt-4 pt-4 border-t border-primary/5 flex items-center justify-between">
+                                            <div className="flex items-center gap-2 text-primary">
+                                               <span className="material-symbols-outlined text-xs">schedule</span>
+                                               <span className="text-xs font-black">{p.start_time} - {p.end_time}</span>
+                                            </div>
+                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                               <button 
+                                                  onClick={() => {
+                                                     setProgramForm(p);
+                                                     setIsEditingProgram(true);
+                                                     setCurrentProgramId(p.id);
+                                                     window.scrollTo({ top: 0, behavior: 'smooth' });
+                                                  }}
+                                                  className="p-1.5 text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                                               >
+                                                  <span className="material-symbols-outlined text-sm">edit</span>
+                                               </button>
+                                               <button 
+                                                  onClick={() => handleProgramDelete(p.id)}
+                                                  className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                               >
+                                                  <span className="material-symbols-outlined text-sm">delete</span>
+                                               </button>
+                                            </div>
+                                         </div>
+                                      </div>
+                                   ))}
+                                {programs.length === 0 && (
+                                   <div className="col-span-full py-20 bg-slate-50 dark:bg-slate-900/40 rounded-3xl border-2 border-dashed border-primary/10 flex flex-col items-center">
+                                      <span className="material-symbols-outlined text-5xl text-slate-300 mb-4 font-thin">calendar_today</span>
+                                      <p className="font-bold text-slate-500 uppercase text-[10px] tracking-widest">No programs found in system</p>
+                                   </div>
+                                )}
+                             </div>
+                          ) : (
+                             <div className="bg-white dark:bg-slate-800/40 rounded-3xl border border-primary/10 p-6 shadow-sm overflow-hidden min-h-[500px]">
+                                <h3 className="text-xl font-black mb-6">Program Schedule Mapping</h3>
+                                <div className="space-y-6">
+                                   {programDays.map(day => {
+                                      const dayPrograms = programs.filter(p => p.days.includes(day)).sort((a,b) => a.start_time.localeCompare(b.start_time));
+                                      return (
+                                         <div key={day} className="flex gap-4">
+                                            <div className="w-24 flex-shrink-0">
+                                               <span className="text-xs font-black uppercase tracking-widest text-primary">{day}</span>
+                                            </div>
+                                            <div className="flex-1 flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                                               {dayPrograms.map(p => (
+                                                  <div key={`${day}-${p.id}`} className="flex-shrink-0 w-48 p-3 bg-primary/5 dark:bg-slate-800 rounded-2xl border border-primary/10 group relative">
+                                                     <div className="text-[9px] font-black text-primary mb-1">{p.start_time} - {p.end_time}</div>
+                                                     <div className="text-xs font-bold text-slate-900 dark:text-white truncate mb-0.5">{p.title}</div>
+                                                     <div className="text-[8px] font-bold text-slate-500 uppercase truncate">{p.host || 'Various'}</div>
+                                                     <div className="absolute inset-0 bg-primary/90 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 rounded-2xl">
+                                                        <button onClick={() => { setProgramForm(p); setIsEditingProgram(true); setCurrentProgramId(p.id); }} className="size-8 rounded-full bg-white text-primary flex items-center justify-center hover:scale-110"><span className="material-symbols-outlined text-sm">edit</span></button>
+                                                     </div>
+                                                  </div>
+                                               ))}
+                                               {dayPrograms.length === 0 && (
+                                                  <div className="flex-1 h-12 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-dashed border-slate-200 flex items-center justify-center">
+                                                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Off Air / Music Stream</span>
+                                                  </div>
+                                               )}
+                                            </div>
+                                         </div>
+                                      );
+                                   })}
+                                </div>
+                             </div>
+                          )}
+                       </div>
+
+                       <div className="flex flex-col bg-white dark:bg-slate-800/40 rounded-3xl border border-primary/10 p-6 shadow-sm h-fit sticky top-8">
+                          <div className="flex items-center justify-between mb-8">
+                             <div>
+                                <h2 className="text-xl font-black">{isEditingProgram ? 'Edit Transmission' : 'Schedule Blueprint'}</h2>
+                                <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1">Configure broadcast parameters</p>
+                             </div>
+                             {isEditingProgram && (
+                                <button 
+                                   onClick={() => {
+                                      setIsEditingProgram(false);
+                                      setCurrentProgramId(null);
+                                      setProgramForm({
+                                         title: '', category: 'News & Current Affairs', description: '', host: '', days: [],
+                                         start_time: '06:00', end_time: '07:00', status: 'Active', image: '', notes: ''
+                                      });
+                                   }}
+                                   className="text-[10px] text-rose-500 font-black uppercase tracking-widest hover:underline"
+                                >
+                                   Cancel
+                                </button>
+                             )}
+                          </div>
+
+                          <form className="space-y-6" onSubmit={handleProgramSubmit}>
+                             {/* Program Branding */}
+                             <div className="flex justify-center">
+                                <div 
+                                   className="relative group size-28 rounded-3xl border-2 border-dashed border-primary/10 flex flex-col items-center justify-center overflow-hidden hover:border-primary/40 cursor-pointer transition-all bg-slate-50 dark:bg-slate-900"
+                                   onClick={() => document.getElementById('program-image').click()}
+                                >
+                                   {programForm.image ? (
+                                      <img src={programForm.image} alt="Preview" className="w-full h-full object-cover" />
+                                   ) : (
+                                      <>
+                                         <span className="material-symbols-outlined text-3xl text-primary/30">add_a_photo</span>
+                                         <p className="text-[8px] font-black text-slate-400 mt-2 uppercase tracking-widest text-center px-2">Program Badge</p>
+                                      </>
+                                   )}
+                                   <input id="program-image" type="file" hidden accept="image/*" onChange={handleProgramImageUpload} />
+                                   <div className="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                      <span className="material-symbols-outlined text-white">upload</span>
+                                   </div>
+                                </div>
+                             </div>
+
+                             <div>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Program Title</label>
+                                <input 
+                                   type="text" required
+                                   value={programForm.title}
+                                   onChange={(e) => setProgramForm(prev => ({ ...prev, title: e.target.value }))}
+                                   className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 font-bold"
+                                   placeholder="e.g. Nyapui Morning Vibes"
+                                />
+                             </div>
+
+                             <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Category</label>
+                                   <select 
+                                      value={programForm.category}
+                                      onChange={(e) => setProgramForm(prev => ({ ...prev, category: e.target.value }))}
+                                      className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-[11px] font-bold focus:ring-2 focus:ring-primary/20"
+                                   >
+                                      {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                                   </select>
+                                </div>
+                                <div>
+                                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Primary Host</label>
+                                   <input 
+                                      type="text"
+                                      value={programForm.host}
+                                      onChange={(e) => setProgramForm(prev => ({ ...prev, host: e.target.value }))}
+                                      className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 font-bold"
+                                      placeholder="Name"
+                                   />
+                                </div>
+                             </div>
+
+                             <div>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-3">Air Frequency (Days)</label>
+                                <div className="flex flex-wrap gap-2">
+                                   {programDays.map(day => {
+                                      const isSelected = programForm.days.includes(day);
+                                      return (
+                                         <button 
+                                            key={day} type="button"
+                                            onClick={() => toggleProgramDay(day)}
+                                            className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase transition-all ${
+                                               isSelected ? 'bg-primary text-white shadow-md shadow-primary/20 scale-105' : 'bg-slate-100 dark:bg-slate-900 text-slate-500 hover:bg-primary/5 hover:text-primary'
+                                            }`}
+                                         >
+                                            {day.substring(0, 3)}
+                                         </button>
+                                      );
+                                   })}
+                                </div>
+                             </div>
+
+                             <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Starts At</label>
+                                   <input 
+                                      type="time" required
+                                      value={programForm.start_time}
+                                      onChange={(e) => setProgramForm(prev => ({ ...prev, start_time: e.target.value }))}
+                                      className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 font-black"
+                                   />
+                                </div>
+                                <div>
+                                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Concludes At</label>
+                                   <input 
+                                      type="time" required
+                                      value={programForm.end_time}
+                                      onChange={(e) => setProgramForm(prev => ({ ...prev, end_time: e.target.value }))}
+                                      className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 font-black"
+                                   />
+                                </div>
+                             </div>
+
+                             <div>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Program Status</label>
+                                <select 
+                                   value={programForm.status}
+                                   onChange={(e) => setProgramForm(prev => ({ ...prev, status: e.target.value }))}
+                                   className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-[11px] font-bold focus:ring-2 focus:ring-primary/20"
+                                >
+                                   <option value="Active">Active / On Air</option>
+                                   <option value="On Break">On Seasonal Break</option>
+                                   <option value="Discontinued">Archive / Discontinued</option>
+                                </select>
+                             </div>
+
+                             <button 
+                                type="submit"
+                                disabled={submitting}
+                                className="w-full py-4 bg-primary text-white font-black uppercase text-[10px] tracking-widest rounded-2xl shadow-xl shadow-primary/30 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
+                             >
+                                {submitting ? 'Updating System...' : isEditingProgram ? 'Update Program Profile' : 'Lock Transmission Schedule'}
+                             </button>
+                          </form>
+                       </div>
+                    </div>
+                  </div>
+                </>
               ) : activeSection === 'settings' ? (
+
                 <>
                   <div className="lg:col-span-1 flex flex-col items-center bg-white dark:bg-slate-800/40 rounded-2xl border border-primary/10 p-8 shadow-sm h-fit">
                     <div className="relative group overflow-hidden rounded-3xl size-32 bg-primary/10 border-2 border-primary/20">

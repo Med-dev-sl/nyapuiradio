@@ -5,8 +5,9 @@ const navItems = [
   { key: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
   { key: 'tasks', label: 'Tasks', icon: 'task_alt' },
   { key: 'broadcasts', label: 'Broadcasts', icon: 'broadcast_on_home' },
+  { key: 'programs', label: 'Programs', icon: 'calendar_month' },
   { key: 'assets', label: 'Assets', icon: 'inventory_2' },
-   { key: 'media', label: 'Media Library', icon: 'perm_media' },
+  { key: 'media', label: 'Media Library', icon: 'perm_media' },
   { key: 'audit', label: 'Audit Logs', icon: 'history' },
   { key: 'staff', label: 'Staff Directory', icon: 'badge' },
   { key: 'donors', label: 'Donors', icon: 'volunteer_activism' },
@@ -42,7 +43,7 @@ const Sidebar = ({ user, active, onSelect, isOpen, onClose }) => {
         <nav className="flex-1 px-4 space-y-1 overflow-y-auto custom-scrollbar">
           <div className="pb-2">
             <p className="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Main Menu</p>
-            {navItems.slice(0, 4).map((item) => {
+            {navItems.slice(0, 5).map((item) => {
               const isActive = active === item.key;
               return (
                 <button
@@ -65,7 +66,7 @@ const Sidebar = ({ user, active, onSelect, isOpen, onClose }) => {
 
           <div className="pt-4 pb-2 border-t border-primary/5">
             <p className="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Resources</p>
-            {navItems.slice(4).map((item) => {
+            {navItems.slice(5).map((item) => {
               const isActive = active === item.key;
               return (
                 <button

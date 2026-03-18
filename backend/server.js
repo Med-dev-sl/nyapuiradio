@@ -633,6 +633,82 @@ app.post('/api/social/post', authenticate, async (req, res) => {
   }
 });
 
+// ─── PROGRAMS ROUTES ──────────────────────────────────────────────────────────
+app.get('/api/programs', authenticate, async (req, res) => {
+  try {
+    const rows = await db.all('SELECT * FROM programs ORDER BY category ASC, start_time ASC;');
+    const programs = rows.map(r => ({
+      ...r,
+      days: typeof r.days === 'string' ? JSON.parse(r.days || '[]') : r.days
+    }));
+    res.json(programs);
+  } catch (err) {
+    console.error('GET /api/programs error', err);
+    res.status(500).json({ error: 'Error fetching programs' });
+  }
+});
+
+app.get('/api/programs/:id', authenticate, async (req, res) => {
+  try {
+    const row = await db.get('SELECT * FROM programs WHERE id = ?', [req.params.id]);
+    if (!row) return res.status(404).json({ error: 'Program not found' });
+    res.json({ ...row, days: typeof row.days === 'string' ? JSON.parse(row.days || '[]') : row.days });
+  } catch (err) {
+    res.status(500).json({ error: 'Error fetching program' });
+  }
+});
+
+app.post('/api/programs', authenticate, async (req, res) => {
+  const { title, category, description, host, days, start_time, end_time, status, image, notes } = req.body;
+  if (!title || !category || !days || !start_time || !end_time) {
+    return res.status(400).json({ error: 'Title, category, days, start time and end time are required' });
+  }
+  const daysJson = JSON.stringify(Array.isArray(days) ? days : [days]);
+  try {
+    const result = await db.run(
+      'INSERT INTO programs (title, category, description, host, days, start_time, end_time, status, image, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [title, category, description, host, daysJson, start_time, end_time, status || 'Active', image || null, notes]
+    );
+    await logAction(req.userId, 'CREATE_PROGRAM', `Created program: ${title} (${category})`, 'program', result.lastID);
+    res.status(201).json({ id: result.lastID, title, category });
+  } catch (err) {
+    console.error('POST /api/programs error', err);
+    res.status(500).json({ error: 'Error creating program' });
+  }
+});
+
+app.put('/api/programs/:id', authenticate, async (req, res) => {
+  const { id } = req.params;
+  const { title, category, description, host, days, start_time, end_time, status, image, notes } = req.body;
+  if (!title || !category || !days || !start_time || !end_time) {
+    return res.status(400).json({ error: 'Title, category, days, start time and end time are required' });
+  }
+  const daysJson = JSON.stringify(Array.isArray(days) ? days : [days]);
+  try {
+    const result = await db.run(
+      'UPDATE programs SET title = ?, category = ?, description = ?, host = ?, days = ?, start_time = ?, end_time = ?, status = ?, image = ?, notes = ? WHERE id = ?',
+      [title, category, description, host, daysJson, start_time, end_time, status, image || null, notes, id]
+    );
+    if (result.changes === 0) return res.status(404).json({ error: 'Program not found' });
+    await logAction(req.userId, 'UPDATE_PROGRAM', `Updated program: ${title}`, 'program', id);
+    res.json({ message: 'Program updated successfully' });
+  } catch (err) {
+    res.status(500).json({ error: 'Error updating program' });
+  }
+});
+
+app.delete('/api/programs/:id', authenticate, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await db.run('DELETE FROM programs WHERE id = ?', [id]);
+    if (result.changes === 0) return res.status(404).json({ error: 'Program not found' });
+    await logAction(req.userId, 'DELETE_PROGRAM', `Deleted program ID: ${id}`, 'program', id);
+    res.json({ message: 'Program deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ error: 'Error deleting program' });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Server listening on http://localhost:${PORT}`);
 });
