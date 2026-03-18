@@ -709,6 +709,121 @@ app.delete('/api/programs/:id', authenticate, async (req, res) => {
   }
 });
 
+// ─── SERVICES ROUTES ──────────────────────────────────────────────────────────
+app.get('/api/services', async (req, res) => {
+  try {
+    const rows = await db.all('SELECT * FROM services ORDER BY name ASC;');
+    res.json(rows);
+  } catch (err) {
+    console.error('GET /api/services error', err);
+    res.status(500).json({ error: 'Error fetching services' });
+  }
+});
+
+app.get('/api/services/:id', async (req, res) => {
+  try {
+    const row = await db.get('SELECT * FROM services WHERE id = ?', [req.params.id]);
+    if (!row) return res.status(404).json({ error: 'Service not found' });
+    res.json(row);
+  } catch (err) {
+    res.status(500).json({ error: 'Error fetching service' });
+  }
+});
+
+app.post('/api/services', authenticate, async (req, res) => {
+  const { name, description, image, terms_conditions, status } = req.body;
+  if (!name) {
+    return res.status(400).json({ error: 'Service name is required' });
+  }
+  try {
+    const result = await db.run(
+      'INSERT INTO services (name, description, image, terms_conditions, status) VALUES (?, ?, ?, ?, ?)',
+      [name, description, image, terms_conditions, status || 'Active']
+    );
+    await logAction(req.userId, 'CREATE_SERVICE', `Created service: ${name}`, 'service', result.lastID);
+    res.status(201).json({ id: result.lastID, name, description, image, terms_conditions, status });
+  } catch (err) {
+    console.error('POST /api/services error', err);
+    res.status(500).json({ error: 'Error creating service' });
+  }
+});
+
+app.put('/api/services/:id', authenticate, async (req, res) => {
+  const { id } = req.params;
+  const { name, description, image, terms_conditions, status } = req.body;
+  try {
+    const result = await db.run(
+      'UPDATE services SET name = ?, description = ?, image = ?, terms_conditions = ?, status = ? WHERE id = ?',
+      [name, description, image, terms_conditions, status, id]
+    );
+    if (result.changes === 0) return res.status(404).json({ error: 'Service not found' });
+    await logAction(req.userId, 'UPDATE_SERVICE', `Updated service: ${name}`, 'service', id);
+    res.json({ message: 'Service updated successfully' });
+  } catch (err) {
+    res.status(500).json({ error: 'Error updating service' });
+  }
+});
+
+app.delete('/api/services/:id', authenticate, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await db.run('DELETE FROM services WHERE id = ?', [id]);
+    if (result.changes === 0) return res.status(404).json({ error: 'Service not found' });
+    await logAction(req.userId, 'DELETE_SERVICE', `Deleted service ID: ${id}`, 'service', id);
+    res.json({ message: 'Service deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ error: 'Error deleting service' });
+  }
+});
+
+// ─── SERVICE BOOKINGS ROUTES ─────────────────────────────────────────────────
+app.get('/api/service-bookings', authenticate, async (req, res) => {
+  try {
+    const rows = await db.all(`
+      SELECT sb.*, s.name as service_name 
+      FROM service_bookings sb 
+      LEFT JOIN services s ON sb.service_id = s.id 
+      ORDER BY sb.created_at DESC;
+    `);
+    res.json(rows);
+  } catch (err) {
+    console.error('GET /api/service-bookings error', err);
+    res.status(500).json({ error: 'Error fetching service bookings' });
+  }
+});
+
+app.post('/api/service-bookings', async (req, res) => {
+  const { service_id, customer_name, customer_email, customer_phone, booking_date, details } = req.body;
+  if (!service_id || !customer_name || !customer_email) {
+    return res.status(400).json({ error: 'Service ID, customer name, and email are required' });
+  }
+  try {
+    const result = await db.run(
+      'INSERT INTO service_bookings (service_id, customer_name, customer_email, customer_phone, booking_date, details) VALUES (?, ?, ?, ?, ?, ?)',
+      [service_id, customer_name, customer_email, customer_phone, booking_date, details]
+    );
+    res.status(201).json({ id: result.lastID, message: 'Booking submitted successfully' });
+  } catch (err) {
+    console.error('POST /api/service-bookings error', err);
+    res.status(500).json({ error: 'Error creating booking' });
+  }
+});
+
+app.put('/api/service-bookings/:id', authenticate, async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+  try {
+    const result = await db.run(
+      'UPDATE service_bookings SET status = ? WHERE id = ?',
+      [status, id]
+    );
+    if (result.changes === 0) return res.status(404).json({ error: 'Booking not found' });
+    res.json({ message: 'Booking status updated successfully' });
+  } catch (err) {
+    res.status(500).json({ error: 'Error updating booking' });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Server listening on http://localhost:${PORT}`);
 });

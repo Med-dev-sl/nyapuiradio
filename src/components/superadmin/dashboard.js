@@ -138,6 +138,22 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
   const [currentProgramId, setCurrentProgramId] = useState(null);
   const [programView, setProgramView] = useState('grid'); // 'grid' | 'schedule'
 
+  // Services States
+  const [services, setServices] = useState([]);
+  const [serviceForm, setServiceForm] = useState({
+    name: '',
+    description: '',
+    image: '',
+    terms_conditions: '',
+    status: 'Active'
+  });
+  const [serviceSearch, setServiceSearch] = useState('');
+  const [serviceStatusFilter, setServiceStatusFilter] = useState('All');
+  const [isEditingService, setIsEditingService] = useState(false);
+  const [currentServiceId, setCurrentServiceId] = useState(null);
+  const [serviceBookings, setServiceBookings] = useState([]);
+  const [bookingStatusFilter, setBookingStatusFilter] = useState('All');
+
   const showError = (msg) => {
     setModal({
       open: true,
@@ -319,6 +335,20 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
     } catch (err) { console.error(err); }
   }, [token]);
 
+  const fetchServices = useCallback(async () => {
+    try {
+      const resp = await fetch(`${API_URL}/api/services`);
+      if (resp.ok) setServices(await resp.json());
+    } catch (err) { console.error(err); }
+  }, []);
+
+  const fetchServiceBookings = useCallback(async () => {
+    try {
+      const resp = await fetch(`${API_URL}/api/service-bookings`, { headers: { Authorization: `Bearer ${token}` } });
+      if (resp.ok) setServiceBookings(await resp.json());
+    } catch (err) { console.error(err); }
+  }, [token]);
+
   useEffect(() => {
     fetchStations();
     fetchDonors();
@@ -353,7 +383,11 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
     if (activeSection === 'programs') {
       fetchPrograms();
     }
-  }, [activeSection, currentFolderId, fetchFolders, fetchMediaFiles, fetchMediaStats, fetchAuditLogs, fetchTasks, fetchUsers, fetchPartners, fetchAnalyticsSummary, fetchSocialHistory, fetchPrograms]);
+    if (activeSection === 'services') {
+      fetchServices();
+      fetchServiceBookings();
+    }
+  }, [activeSection, currentFolderId, fetchFolders, fetchMediaFiles, fetchMediaStats, fetchAuditLogs, fetchTasks, fetchUsers, fetchPartners, fetchAnalyticsSummary, fetchSocialHistory, fetchPrograms, fetchServices, fetchServiceBookings]);
 
 
   useEffect(() => {
@@ -1212,6 +1246,78 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
     }
   };
 
+  const handleServiceSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const method = isEditingService ? 'PUT' : 'POST';
+      const url = isEditingService ? `${API_URL}/api/services/${currentServiceId}` : `${API_URL}/api/services`;
+      const resp = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(serviceForm)
+      });
+      if (resp.ok) {
+        showSuccess(isEditingService ? 'Service updated successfully.' : 'Service created successfully.', 'Service Saved');
+        setServiceForm({ name: '', description: '', image: '', terms_conditions: '', status: 'Active' });
+        setIsEditingService(false);
+        setCurrentServiceId(null);
+        fetchServices();
+      } else {
+        const errorData = await resp.json().catch(() => ({}));
+        showError(errorData.error || 'Failed to save service');
+      }
+    } catch (err) {
+      showError('Network error occurred');
+    }
+  };
+
+  const handleServiceDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this service? This action cannot be undone.')) return;
+    try {
+      const resp = await fetch(`${API_URL}/api/services/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (resp.ok) {
+        showSuccess('Service deleted successfully.', 'Service Deleted');
+        fetchServices();
+      }
+    } catch (err) { showError('Failed to delete service'); }
+  };
+
+  const handleServiceImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 512 * 1024) {
+        showError('Service image exceeds size limit (512KB).');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => setServiceForm(prev => ({ ...prev, image: reader.result }));
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleBookingStatusUpdate = async (id, status) => {
+    try {
+      const resp = await fetch(`${API_URL}/api/service-bookings/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ status })
+      });
+      if (resp.ok) {
+        showSuccess('Booking status updated successfully.');
+        fetchServiceBookings();
+      }
+    } catch (err) { showError('Failed to update booking status'); }
+  };
+
   const liveListeners = 0; 
   const totalDonations = donors.reduce((sum, d) => sum + d.amount, 0); 
 
@@ -1571,6 +1677,278 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
                       <div className="px-4 py-2 bg-amber-500/10 text-amber-600 rounded-lg text-xs font-bold uppercase transition-all">
                         {assetStats.maintenance} Maintenance
                       </div>
+                    </div>
+                  </div>
+                </>
+              ) : activeSection === 'services' ? (
+                <>
+                  <div className="lg:col-span-3 flex flex-col gap-6">
+                    {/* Services Header & Controls */}
+                    <div className="bg-white dark:bg-slate-800/40 rounded-3xl border border-primary/10 p-6 shadow-sm overflow-hidden relative">
+                       <div className="absolute top-0 right-0 p-8 opacity-5">
+                          <span className="material-symbols-outlined text-[120px]">design_services</span>
+                       </div>
+                       <div className="relative flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                          <div>
+                             <h2 className="text-3xl font-black text-slate-900 dark:text-white">Service Offerings</h2>
+                             <p className="text-sm text-slate-500 font-medium mt-1">Manage station services and customer bookings</p>
+                          </div>
+                          <div className="flex gap-3">
+                             <button 
+                                onClick={() => {
+                                   setIsEditingService(false);
+                                   setServiceForm({
+                                      name: '', description: '', image: '', terms_conditions: '', status: 'Active'
+                                   });
+                                }}
+                                className="px-6 py-3 bg-primary text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
+                             >
+                                <span className="material-symbols-outlined text-sm">add</span>
+                                New Service
+                             </button>
+                          </div>
+                       </div>
+
+                       <div className="mt-8 flex flex-col lg:flex-row gap-4 items-center border-t border-primary/5 pt-6">
+                          <div className="relative flex-1 w-full">
+                             <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
+                             <input 
+                                type="text" 
+                                placeholder="Search services..."
+                                value={serviceSearch}
+                                onChange={(e) => setServiceSearch(e.target.value)}
+                                className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl pl-12 pr-4 py-3 text-xs focus:ring-2 focus:ring-primary/20 font-medium"
+                             />
+                          </div>
+                          <div className="flex gap-3 w-full lg:w-auto">
+                             <select 
+                                value={serviceStatusFilter}
+                                onChange={(e) => setServiceStatusFilter(e.target.value)}
+                                className="bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 focus:ring-2 focus:ring-primary/20 cursor-pointer"
+                             >
+                                <option value="All">All Statuses</option>
+                                <option value="Active">Active</option>
+                                <option value="Inactive">Inactive</option>
+                             </select>
+                          </div>
+                       </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                       <div className="lg:col-span-2 space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                             {services
+                                .filter(s => (serviceStatusFilter === 'All' || s.status === serviceStatusFilter))
+                                .filter(s => s.name.toLowerCase().includes(serviceSearch.toLowerCase()) || s.description?.toLowerCase().includes(serviceSearch.toLowerCase()))
+                                .map(s => (
+                                   <div key={s.id} className="bg-white dark:bg-slate-800/40 rounded-3xl border border-primary/10 p-5 shadow-sm group hover:border-primary/30 transition-all flex flex-col">
+                                      <div className="flex items-start gap-4 h-full">
+                                         <div className="size-16 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-primary/5 flex items-center justify-center overflow-hidden shrink-0">
+                                            {s.image ? (
+                                               <img src={s.image} alt={s.name} className="w-full h-full object-cover" />
+                                            ) : (
+                                               <span className="material-symbols-outlined text-primary/30 text-3xl">design_services</span>
+                                            )}
+                                         </div>
+                                         <div className="flex-1 min-w-0">
+                                            <div className="flex justify-between items-start">
+                                               <h3 className="font-bold text-slate-900 dark:text-white truncate pr-2">{s.name}</h3>
+                                               <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-tighter shrink-0 ${
+                                                  s.status === 'Active' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-rose-500/10 text-rose-600'
+                                               }`}>{s.status}</span>
+                                            </div>
+                                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">Service Offering</p>
+                                            <p className="text-xs text-slate-600 dark:text-slate-400 mt-2 line-clamp-2">{s.description}</p>
+                                         </div>
+                                      </div>
+                                      <div className="mt-4 pt-4 border-t border-primary/5 flex items-center justify-between">
+                                         <div className="flex items-center gap-2 text-primary">
+                                            <span className="material-symbols-outlined text-xs">info</span>
+                                            <span className="text-xs font-black">Terms Available</span>
+                                         </div>
+                                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button 
+                                               onClick={() => {
+                                                  setServiceForm(s);
+                                                  setIsEditingService(true);
+                                                  setCurrentServiceId(s.id);
+                                                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                                               }}
+                                               className="p-1.5 text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                                            >
+                                               <span className="material-symbols-outlined text-sm">edit</span>
+                                            </button>
+                                            <button 
+                                               onClick={() => handleServiceDelete(s.id)}
+                                               className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                            >
+                                               <span className="material-symbols-outlined text-sm">delete</span>
+                                            </button>
+                                         </div>
+                                      </div>
+                                   </div>
+                                ))}
+                             {services.length === 0 && (
+                                <div className="col-span-full py-20 bg-slate-50 dark:bg-slate-900/40 rounded-3xl border-2 border-dashed border-primary/10 flex flex-col items-center">
+                                   <span className="material-symbols-outlined text-5xl text-slate-300 mb-4 font-thin">design_services</span>
+                                   <p className="font-bold text-slate-500 uppercase text-[10px] tracking-widest">No services found</p>
+                                </div>
+                             )}
+                          </div>
+                       </div>
+
+                       <div className="flex flex-col bg-white dark:bg-slate-800/40 rounded-3xl border border-primary/10 p-6 shadow-sm h-fit sticky top-8">
+                          <div className="flex items-center justify-between mb-8">
+                             <div>
+                                <h2 className="text-xl font-black">{isEditingService ? 'Edit Service' : 'Create Service'}</h2>
+                                <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1">Configure service details</p>
+                             </div>
+                             {isEditingService && (
+                                <button 
+                                   onClick={() => {
+                                      setIsEditingService(false);
+                                      setCurrentServiceId(null);
+                                      setServiceForm({ name: '', description: '', image: '', terms_conditions: '', status: 'Active' });
+                                   }}
+                                   className="text-[10px] text-rose-500 font-black uppercase tracking-widest hover:underline"
+                                >
+                                   Cancel
+                                </button>
+                             )}
+                          </div>
+
+                          <form className="space-y-6" onSubmit={handleServiceSubmit}>
+                             <div className="flex justify-center">
+                                <div 
+                                   className="relative group size-28 rounded-3xl border-2 border-dashed border-primary/10 flex flex-col items-center justify-center overflow-hidden hover:border-primary/40 cursor-pointer transition-all bg-slate-50 dark:bg-slate-900"
+                                   onClick={() => document.getElementById('service-image').click()}
+                                >
+                                   {serviceForm.image ? (
+                                      <img src={serviceForm.image} alt="Preview" className="w-full h-full object-cover" />
+                                   ) : (
+                                      <>
+                                         <span className="material-symbols-outlined text-3xl text-primary/30">add_a_photo</span>
+                                         <p className="text-[8px] font-black text-slate-400 mt-2 uppercase tracking-widest text-center px-2">Service Image</p>
+                                      </>
+                                   )}
+                                   <input id="service-image" type="file" hidden accept="image/*" onChange={handleServiceImageUpload} />
+                                   <div className="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-3xl">
+                                      <span className="material-symbols-outlined text-white">upload</span>
+                                   </div>
+                                </div>
+                             </div>
+
+                             <div>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Service Name</label>
+                                <input 
+                                   type="text" required
+                                   value={serviceForm.name}
+                                   onChange={(e) => setServiceForm(prev => ({ ...prev, name: e.target.value }))}
+                                   className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 font-bold"
+                                   placeholder="e.g. Advertising Services"
+                                />
+                             </div>
+
+                             <div>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Description</label>
+                                <textarea 
+                                   value={serviceForm.description}
+                                   onChange={(e) => setServiceForm(prev => ({ ...prev, description: e.target.value }))}
+                                   className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 font-bold resize-none"
+                                   rows="3"
+                                   placeholder="Describe the service offering..."
+                                />
+                             </div>
+
+                             <div>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Terms & Conditions</label>
+                                <textarea 
+                                   value={serviceForm.terms_conditions}
+                                   onChange={(e) => setServiceForm(prev => ({ ...prev, terms_conditions: e.target.value }))}
+                                   className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 font-bold resize-none"
+                                   rows="4"
+                                   placeholder="Service terms and conditions..."
+                                />
+                             </div>
+
+                             <div>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Status</label>
+                                <select 
+                                   value={serviceForm.status}
+                                   onChange={(e) => setServiceForm(prev => ({ ...prev, status: e.target.value }))}
+                                   className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 font-bold"
+                                >
+                                   <option value="Active">Active</option>
+                                   <option value="Inactive">Inactive</option>
+                                </select>
+                             </div>
+
+                             <button 
+                                type="submit"
+                                className="w-full bg-primary text-white py-3 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-primary/90 transition-colors"
+                             >
+                                {isEditingService ? 'Update Service' : 'Create Service'}
+                             </button>
+                          </form>
+                       </div>
+                    </div>
+
+                    {/* Service Bookings Section */}
+                    <div className="bg-white dark:bg-slate-800/40 rounded-3xl border border-primary/10 p-6 shadow-sm">
+                       <div className="flex justify-between items-center mb-6">
+                          <div>
+                             <h3 className="text-xl font-black">Service Bookings</h3>
+                             <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1">Customer service requests</p>
+                          </div>
+                          <select 
+                             value={bookingStatusFilter}
+                             onChange={(e) => setBookingStatusFilter(e.target.value)}
+                             className="bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500 focus:ring-2 focus:ring-primary/20 cursor-pointer"
+                          >
+                             <option value="All">All Statuses</option>
+                             <option value="Pending">Pending</option>
+                             <option value="Confirmed">Confirmed</option>
+                             <option value="Completed">Completed</option>
+                             <option value="Cancelled">Cancelled</option>
+                          </select>
+                       </div>
+
+                       <div className="space-y-4">
+                          {serviceBookings
+                             .filter(b => bookingStatusFilter === 'All' || b.status === bookingStatusFilter)
+                             .map(b => (
+                             <div key={b.id} className="bg-slate-50 dark:bg-slate-900 rounded-2xl p-4 border border-primary/5">
+                                <div className="flex justify-between items-start mb-3">
+                                   <div>
+                                      <h4 className="font-bold text-slate-900 dark:text-white">{b.customer_name}</h4>
+                                      <p className="text-xs text-slate-500">{b.service_name}</p>
+                                   </div>
+                                   <select 
+                                      value={b.status}
+                                      onChange={(e) => handleBookingStatusUpdate(b.id, e.target.value)}
+                                      className="bg-white dark:bg-slate-800 border-none rounded-lg px-3 py-1 text-[9px] font-black uppercase tracking-widest focus:ring-2 focus:ring-primary/20"
+                                   >
+                                      <option value="Pending">Pending</option>
+                                      <option value="Confirmed">Confirmed</option>
+                                      <option value="Completed">Completed</option>
+                                      <option value="Cancelled">Cancelled</option>
+                                   </select>
+                                </div>
+                                <div className="text-xs text-slate-600 dark:text-slate-400 space-y-1">
+                                   <p><strong>Email:</strong> {b.customer_email}</p>
+                                   {b.customer_phone && <p><strong>Phone:</strong> {b.customer_phone}</p>}
+                                   {b.booking_date && <p><strong>Preferred Date:</strong> {new Date(b.booking_date).toLocaleDateString()}</p>}
+                                   {b.details && <p><strong>Details:</strong> {b.details}</p>}
+                                </div>
+                             </div>
+                          ))}
+                          {serviceBookings.length === 0 && (
+                             <div className="py-12 text-center">
+                                <span className="material-symbols-outlined text-4xl text-slate-300 mb-2 block">event_note</span>
+                                <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest">No bookings yet</p>
+                             </div>
+                          )}
+                       </div>
                     </div>
                   </div>
                 </>
