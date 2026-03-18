@@ -1750,7 +1750,7 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
                     </div>
                   </div>
                 </>
-              ) : activeSection === 'dashboard' || activeSection === 'broadcasts' || activeSection === 'inventory' || activeSection === 'staff' ? (
+              ) : activeSection === 'dashboard' || activeSection === 'broadcasts' || activeSection === 'inventory' ? (
                 <>
                   <div className="lg:col-span-3 py-16 flex flex-col items-center justify-center bg-white dark:bg-slate-800/40 rounded-2xl border border-primary/10 shadow-sm text-center">
                     <div className="size-20 bg-primary/10 rounded-full flex items-center justify-center text-primary mb-6">
