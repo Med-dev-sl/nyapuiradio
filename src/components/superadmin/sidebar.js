@@ -7,6 +7,8 @@ const navItems = [
   { key: 'broadcasts', label: 'Broadcasts', icon: 'broadcast_on_home' },
   { key: 'programs', label: 'Programs', icon: 'calendar_month' },
   { key: 'news', label: 'News', icon: 'article' },
+  { key: 'podcasts', label: 'Podcasts', icon: 'podcasts' },
+  { key: 'program_videos', label: 'Program Videos', icon: 'videocam' },
   { key: 'services', label: 'Services', icon: 'design_services' },
   { key: 'assets', label: 'Assets', icon: 'inventory_2' },
   { key: 'media', label: 'Media Library', icon: 'perm_media' },

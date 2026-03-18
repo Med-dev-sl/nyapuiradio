@@ -191,6 +191,35 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
   const [isEditingNews, setIsEditingNews] = useState(false);
   const [currentNewsId, setCurrentNewsId] = useState(null);
 
+  // Podcasts States
+  const [podcasts, setPodcasts] = useState([]);
+  const [podcastForm, setPodcastForm] = useState({
+    title: '',
+    description: '',
+    thumbnail: '',
+    video_url: '',
+    status: 'Draft'
+  });
+  const [podcastSearch, setPodcastSearch] = useState('');
+  const [podcastStatusFilter, setPodcastStatusFilter] = useState('All');
+  const [isEditingPodcast, setIsEditingPodcast] = useState(false);
+  const [currentPodcastId, setCurrentPodcastId] = useState(null);
+
+  // Program Videos States
+  const [programVideos, setProgramVideos] = useState([]);
+  const [programVideoForm, setProgramVideoForm] = useState({
+    program_id: '',
+    title: '',
+    description: '',
+    thumbnail: '',
+    video_url: '',
+    status: 'Draft'
+  });
+  const [programVideoSearch, setProgramVideoSearch] = useState('');
+  const [programVideoStatusFilter, setProgramVideoStatusFilter] = useState('All');
+  const [isEditingProgramVideo, setIsEditingProgramVideo] = useState(false);
+  const [currentProgramVideoId, setCurrentProgramVideoId] = useState(null);
+
   const showError = (msg) => {
     setModal({
       open: true,
@@ -400,6 +429,20 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
     } catch (err) { console.error(err); }
   }, [token]);
 
+  const fetchPodcasts = useCallback(async () => {
+    try {
+      const resp = await fetch(`${API_URL}/api/podcasts`, { headers: { Authorization: `Bearer ${token}` } });
+      if (resp.ok) setPodcasts(await resp.json());
+    } catch (err) { console.error(err); }
+  }, [token]);
+
+  const fetchProgramVideos = useCallback(async () => {
+    try {
+      const resp = await fetch(`${API_URL}/api/program-videos`, { headers: { Authorization: `Bearer ${token}` } });
+      if (resp.ok) setProgramVideos(await resp.json());
+    } catch (err) { console.error(err); }
+  }, [token]);
+
   const handleStaffSubmit = async (e) => {
     e.preventDefault();
     if (!staffForm.full_name.trim() || !staffForm.role.trim() || !staffForm.email.trim()) {
@@ -525,6 +568,132 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
     }
   };
 
+  const handlePodcastSubmit = async (e) => {
+    e.preventDefault();
+    if (!podcastForm.title.trim()) {
+      showError('Podcast title is required');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const method = isEditingPodcast ? 'PUT' : 'POST';
+      const url = isEditingPodcast ? `${API_URL}/api/podcasts/${currentPodcastId}` : `${API_URL}/api/podcasts`;
+      const resp = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(podcastForm)
+      });
+
+      if (!resp.ok) {
+        const errorData = await resp.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to save podcast');
+      }
+
+      setPodcastForm({ title: '', description: '', thumbnail: '', video_url: '', status: 'Draft' });
+      setIsEditingPodcast(false);
+      setCurrentPodcastId(null);
+      showSuccess('Podcast saved successfully', 'Podcast');
+      fetchPodcasts();
+    } catch (err) {
+      showError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handlePodcastDelete = async (id) => {
+    if (!window.confirm('Delete this podcast episode? This action cannot be undone.')) return;
+    try {
+      const resp = await fetch(`${API_URL}/api/podcasts/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+      if (resp.ok) {
+        showSuccess('Podcast deleted', 'Podcast');
+        fetchPodcasts();
+      } else {
+        const errorData = await resp.json().catch(() => ({}));
+        showError(errorData.error || 'Failed to delete podcast');
+      }
+    } catch (err) {
+      showError('Network error while deleting podcast');
+    }
+  };
+
+  const handlePodcastThumbnailUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 512 * 1024) {
+        showError('Thumbnail exceeds 512KB.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => setPodcastForm(prev => ({ ...prev, thumbnail: reader.result }));
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleProgramVideoSubmit = async (e) => {
+    e.preventDefault();
+    if (!programVideoForm.program_id || !programVideoForm.title.trim()) {
+      showError('Program and video title are required');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const method = isEditingProgramVideo ? 'PUT' : 'POST';
+      const url = isEditingProgramVideo ? `${API_URL}/api/program-videos/${currentProgramVideoId}` : `${API_URL}/api/program-videos`;
+      const resp = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(programVideoForm)
+      });
+
+      if (!resp.ok) {
+        const errorData = await resp.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to save program video');
+      }
+
+      setProgramVideoForm({ program_id: '', title: '', description: '', thumbnail: '', video_url: '', status: 'Draft' });
+      setIsEditingProgramVideo(false);
+      setCurrentProgramVideoId(null);
+      showSuccess('Program video saved successfully', 'Program Video');
+      fetchProgramVideos();
+    } catch (err) {
+      showError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleProgramVideoDelete = async (id) => {
+    if (!window.confirm('Delete this program video? This action cannot be undone.')) return;
+    try {
+      const resp = await fetch(`${API_URL}/api/program-videos/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+      if (resp.ok) {
+        showSuccess('Program video deleted', 'Program Video');
+        fetchProgramVideos();
+      } else {
+        const errorData = await resp.json().catch(() => ({}));
+        showError(errorData.error || 'Failed to delete program video');
+      }
+    } catch (err) {
+      showError('Network error while deleting program video');
+    }
+  };
+
+  const handleProgramVideoThumbnailUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 512 * 1024) {
+        showError('Thumbnail exceeds 512KB.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => setProgramVideoForm(prev => ({ ...prev, thumbnail: reader.result }));
+      reader.readAsDataURL(file);
+    }
+  };
+
   useEffect(() => {
     fetchStations();
     fetchDonors();
@@ -556,7 +725,7 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
     if (activeSection === 'social') {
       fetchSocialHistory();
     }
-    if (activeSection === 'programs') {
+    if (activeSection === 'programs' || activeSection === 'program_videos') {
       fetchPrograms();
     }
     if (activeSection === 'services') {
@@ -566,10 +735,16 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
     if (activeSection === 'news') {
       fetchNews();
     }
+    if (activeSection === 'podcasts') {
+      fetchPodcasts();
+    }
+    if (activeSection === 'program_videos') {
+      fetchProgramVideos();
+    }
     if (activeSection === 'staff') {
       fetchStaff();
     }
-  }, [activeSection, currentFolderId, fetchFolders, fetchMediaFiles, fetchMediaStats, fetchAuditLogs, fetchTasks, fetchUsers, fetchPartners, fetchAnalyticsSummary, fetchSocialHistory, fetchPrograms, fetchServices, fetchServiceBookings, fetchStaff, fetchNews]);
+  }, [activeSection, currentFolderId, fetchFolders, fetchMediaFiles, fetchMediaStats, fetchAuditLogs, fetchTasks, fetchUsers, fetchPartners, fetchAnalyticsSummary, fetchSocialHistory, fetchPrograms, fetchServices, fetchServiceBookings, fetchStaff, fetchNews, fetchPodcasts, fetchProgramVideos]);
 
 
   useEffect(() => {
@@ -2291,6 +2466,263 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
                           </div>
 
                           <button type="submit" className="w-full bg-primary text-white py-3 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-primary/90 transition-colors">{isEditingNews ? 'Update News' : 'Publish News'}</button>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : activeSection === 'podcasts' ? (
+                <>
+                  <div className="lg:col-span-3 flex flex-col gap-6">
+                    <div className="bg-white dark:bg-slate-800/40 rounded-3xl border border-primary/10 p-6 shadow-sm overflow-hidden relative">
+                      <div className="absolute top-0 right-0 p-8 opacity-5">
+                        <span className="material-symbols-outlined text-[120px]">podcasts</span>
+                      </div>
+                      <div className="relative flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                        <div>
+                          <h2 className="text-3xl font-black text-slate-900 dark:text-white">Podcast Videos</h2>
+                          <p className="text-sm text-slate-500 font-medium mt-1">Manage podcast episodes (thumbnail + video link)</p>
+                        </div>
+                        <div className="flex gap-3">
+                          <button
+                            onClick={() => {
+                              setIsEditingPodcast(false);
+                              setCurrentPodcastId(null);
+                              setPodcastForm({ title: '', description: '', thumbnail: '', video_url: '', status: 'Draft' });
+                            }}
+                            className="px-6 py-3 bg-primary text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
+                          >
+                            <span className="material-symbols-outlined text-sm">add</span>
+                            New Podcast
+                          </button>
+                        </div>
+                      </div>
+                      <div className="mt-8 flex flex-col lg:flex-row gap-4 items-center border-t border-primary/5 pt-6">
+                        <div className="relative flex-1 w-full">
+                          <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
+                          <input
+                            type="text"
+                            placeholder="Search podcasts..."
+                            value={podcastSearch}
+                            onChange={(e) => setPodcastSearch(e.target.value)}
+                            className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl pl-12 pr-4 py-3 text-xs focus:ring-2 focus:ring-primary/20 font-medium"
+                          />
+                        </div>
+                        <div className="flex gap-3 w-full lg:w-auto">
+                          <select
+                            value={podcastStatusFilter}
+                            onChange={(e) => setPodcastStatusFilter(e.target.value)}
+                            className="bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 focus:ring-2 focus:ring-primary/20 cursor-pointer"
+                          >
+                            <option value="All">All Statuses</option>
+                            <option value="Draft">Draft</option>
+                            <option value="Published">Published</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                      <div className="lg:col-span-2 space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {podcasts.filter(p => podcastStatusFilter === 'All' || p.status === podcastStatusFilter)
+                            .filter(p => p.title.toLowerCase().includes(podcastSearch.toLowerCase()) || p.description?.toLowerCase().includes(podcastSearch.toLowerCase()))
+                            .map(p => (
+                              <div key={p.id} className="bg-white dark:bg-slate-800/40 rounded-3xl border border-primary/10 p-5 shadow-sm group hover:border-primary/30 transition-all">
+                                <div className="flex items-start gap-4">
+                                  <div className="size-16 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-primary/5 overflow-hidden">
+                                    {p.thumbnail ? <img src={p.thumbnail} alt={p.title} className="w-full h-full object-cover"/> : <span className="material-symbols-outlined text-primary/30 text-3xl">photo</span>}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <h3 className="font-bold text-slate-900 dark:text-white truncate">{p.title}</h3>
+                                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mt-1">{p.video_url ? 'Has Video Link' : 'No Video'}</p>
+                                    <p className="text-xs text-slate-600 dark:text-slate-400 mt-2 line-clamp-2">{p.description || 'No description available.'}</p>
+                                  </div>
+                                </div>
+                                <div className="mt-4 pt-4 border-t border-primary/5 flex items-center justify-between">
+                                  <span className="text-[10px] text-slate-500">{p.status}</span>
+                                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button onClick={() => { setPodcastForm(p); setIsEditingPodcast(true); setCurrentPodcastId(p.id); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="p-1.5 text-primary hover:bg-primary/10 rounded-lg"><span className="material-symbols-outlined text-sm">edit</span></button>
+                                    <button onClick={() => handlePodcastDelete(p.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg"><span className="material-symbols-outlined text-sm">delete</span></button>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          {podcasts.length === 0 && <div className="col-span-full py-20 bg-slate-50 dark:bg-slate-900/40 rounded-3xl border-2 border-dashed border-primary/10 flex flex-col items-center"><span className="material-symbols-outlined text-5xl text-slate-300 mb-4">podcasts</span><p className="font-bold text-slate-500 uppercase text-[10px] tracking-widest">No podcast episodes found</p></div>}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col bg-white dark:bg-slate-800/40 rounded-3xl border border-primary/10 p-6 shadow-sm h-fit sticky top-8">
+                        <div className="flex items-center justify-between mb-8">
+                          <div>
+                            <h2 className="text-xl font-black">{isEditingPodcast ? 'Edit Podcast' : 'Create Podcast'}</h2>
+                            <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1">Add podcast title, description, and video link</p>
+                          </div>
+                          {isEditingPodcast && <button onClick={() => { setIsEditingPodcast(false); setCurrentPodcastId(null); setPodcastForm({ title: '', description: '', thumbnail: '', video_url: '', status: 'Draft' }); }} className="text-[10px] text-rose-500 font-black uppercase tracking-widest hover:underline">Cancel</button>}
+                        </div>
+
+                        <form className="space-y-4" onSubmit={handlePodcastSubmit}>
+                          <div>
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Title</label>
+                            <input type="text" required value={podcastForm.title} onChange={(e) => setPodcastForm(prev => ({ ...prev, title: e.target.value }))} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 font-bold" placeholder="Episode headline" />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Description</label>
+                            <textarea value={podcastForm.description} onChange={(e) => setPodcastForm(prev => ({ ...prev, description: e.target.value }))} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 font-bold resize-none" rows="3" placeholder="Episode summary" />
+                          </div>
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Thumbnail</label>
+                              <div onClick={() => document.getElementById('podcast-thumbnail').click()} className="relative group size-24 rounded-2xl border-2 border-dashed border-primary/10 flex items-center justify-center overflow-hidden cursor-pointer bg-slate-50 dark:bg-slate-900">
+                                {podcastForm.thumbnail ? <img src={podcastForm.thumbnail} alt="Thumbnail" className="w-full h-full object-cover" /> : <span className="text-slate-400 text-sm">Choose thumbnail</span>}
+                                <input id="podcast-thumbnail" type="file" accept="image/*" hidden onChange={handlePodcastThumbnailUpload} />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Video URL</label>
+                              <input type="url" value={podcastForm.video_url} onChange={(e) => setPodcastForm(prev => ({ ...prev, video_url: e.target.value }))} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 font-bold" placeholder="https://" />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Status</label>
+                            <select value={podcastForm.status} onChange={(e) => setPodcastForm(prev => ({ ...prev, status: e.target.value }))} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 font-bold">
+                              <option value="Draft">Draft</option>
+                              <option value="Published">Published</option>
+                            </select>
+                          </div>
+                          <button type="submit" className="w-full bg-primary text-white py-3 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-primary/90 transition-colors">{isEditingPodcast ? 'Update Podcast' : 'Publish Podcast'}</button>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : activeSection === 'program_videos' ? (
+                <>
+                  <div className="lg:col-span-3 flex flex-col gap-6">
+                    <div className="bg-white dark:bg-slate-800/40 rounded-3xl border border-primary/10 p-6 shadow-sm overflow-hidden relative">
+                      <div className="absolute top-0 right-0 p-8 opacity-5">
+                        <span className="material-symbols-outlined text-[120px]">videocam</span>
+                      </div>
+                      <div className="relative flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                        <div>
+                          <h2 className="text-3xl font-black text-slate-900 dark:text-white">Program Video Uploads</h2>
+                          <p className="text-sm text-slate-500 font-medium mt-1">Upload video content per program with thumbnail and description</p>
+                        </div>
+                        <div className="flex gap-3">
+                          <button
+                            onClick={() => {
+                              setIsEditingProgramVideo(false);
+                              setCurrentProgramVideoId(null);
+                              setProgramVideoForm({ program_id: '', title: '', description: '', thumbnail: '', video_url: '', status: 'Draft' });
+                            }}
+                            className="px-6 py-3 bg-primary text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
+                          >
+                            <span className="material-symbols-outlined text-sm">add</span>
+                            Add Program Video
+                          </button>
+                        </div>
+                      </div>
+                      <div className="mt-8 flex flex-col lg:flex-row gap-4 items-center border-t border-primary/5 pt-6">
+                        <div className="relative flex-1 w-full">
+                          <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
+                          <input
+                            type="text"
+                            placeholder="Search program videos..."
+                            value={programVideoSearch}
+                            onChange={(e) => setProgramVideoSearch(e.target.value)}
+                            className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl pl-12 pr-4 py-3 text-xs focus:ring-2 focus:ring-primary/20 font-medium"
+                          />
+                        </div>
+                        <div className="flex gap-3 w-full lg:w-auto">
+                          <select
+                            value={programVideoStatusFilter}
+                            onChange={(e) => setProgramVideoStatusFilter(e.target.value)}
+                            className="bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 focus:ring-2 focus:ring-primary/20 cursor-pointer"
+                          >
+                            <option value="All">All Statuses</option>
+                            <option value="Draft">Draft</option>
+                            <option value="Published">Published</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                      <div className="lg:col-span-2 space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {programVideos.filter(v => programVideoStatusFilter === 'All' || v.status === programVideoStatusFilter)
+                            .filter(v => v.title.toLowerCase().includes(programVideoSearch.toLowerCase()) || v.description?.toLowerCase().includes(programVideoSearch.toLowerCase()) || v.program_title?.toLowerCase().includes(programVideoSearch.toLowerCase()))
+                            .map(v => (
+                              <div key={v.id} className="bg-white dark:bg-slate-800/40 rounded-3xl border border-primary/10 p-5 shadow-sm group hover:border-primary/30 transition-all">
+                                <div className="flex items-start gap-4">
+                                  <div className="size-16 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-primary/5 overflow-hidden">
+                                    {v.thumbnail ? <img src={v.thumbnail} alt={v.title} className="w-full h-full object-cover" /> : <span className="material-symbols-outlined text-primary/30 text-3xl">photo</span>}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <h3 className="font-bold text-slate-900 dark:text-white truncate">{v.title}</h3>
+                                    <p className="text-[10px] text-slate-500 uppercase tracking-wider mt-1">Program: {v.program_title || 'Unknown'}</p>
+                                    <p className="text-xs text-slate-600 dark:text-slate-400 mt-2 line-clamp-2">{v.description || 'No description.'}</p>
+                                  </div>
+                                </div>
+                                <div className="mt-4 pt-4 border-t border-primary/5 flex items-center justify-between">
+                                  <span className="text-[10px] text-slate-500">{v.status}</span>
+                                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button onClick={() => { setProgramVideoForm({ program_id: v.program_id, title: v.title, description: v.description, thumbnail: v.thumbnail, video_url: v.video_url, status: v.status }); setIsEditingProgramVideo(true); setCurrentProgramVideoId(v.id); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="p-1.5 text-primary hover:bg-primary/10 rounded-lg"><span className="material-symbols-outlined text-sm">edit</span></button>
+                                    <button onClick={() => handleProgramVideoDelete(v.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg"><span className="material-symbols-outlined text-sm">delete</span></button>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          {programVideos.length === 0 && <div className="col-span-full py-20 bg-slate-50 dark:bg-slate-900/40 rounded-3xl border-2 border-dashed border-primary/10 flex flex-col items-center"><span className="material-symbols-outlined text-5xl text-slate-300 mb-4">videocam</span><p className="font-bold text-slate-500 uppercase text-[10px] tracking-widest">No program videos found</p></div>}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col bg-white dark:bg-slate-800/40 rounded-3xl border border-primary/10 p-6 shadow-sm h-fit sticky top-8">
+                        <div className="flex items-center justify-between mb-8">
+                          <div>
+                            <h2 className="text-xl font-black">{isEditingProgramVideo ? 'Edit Program Video' : 'Add Program Video'}</h2>
+                            <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1">Assign video to a program</p>
+                          </div>
+                          {isEditingProgramVideo && <button onClick={() => { setIsEditingProgramVideo(false); setCurrentProgramVideoId(null); setProgramVideoForm({ program_id: '', title: '', description: '', thumbnail: '', video_url: '', status: 'Draft' }); }} className="text-[10px] text-rose-500 font-black uppercase tracking-widest hover:underline">Cancel</button>}
+                        </div>
+
+                        <form className="space-y-4" onSubmit={handleProgramVideoSubmit}>
+                          <div>
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Program</label>
+                            <select value={programVideoForm.program_id} onChange={(e) => setProgramVideoForm(prev => ({ ...prev, program_id: e.target.value }))} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 font-bold">
+                              <option value="">Select Program</option>
+                              {programs.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Video Title</label>
+                            <input type="text" required value={programVideoForm.title} onChange={(e) => setProgramVideoForm(prev => ({ ...prev, title: e.target.value }))} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 font-bold" placeholder="Video headline" />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Description</label>
+                            <textarea value={programVideoForm.description} onChange={(e) => setProgramVideoForm(prev => ({ ...prev, description: e.target.value }))} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 font-bold resize-none" rows="3" placeholder="Short description" />
+                          </div>
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Thumbnail</label>
+                              <div onClick={() => document.getElementById('program-video-thumbnail').click()} className="relative group size-24 rounded-2xl border-2 border-dashed border-primary/10 flex items-center justify-center overflow-hidden cursor-pointer bg-slate-50 dark:bg-slate-900">
+                                {programVideoForm.thumbnail ? <img src={programVideoForm.thumbnail} alt="Thumbnail" className="w-full h-full object-cover" /> : <span className="text-slate-400 text-sm">Choose thumbnail</span>}
+                                <input id="program-video-thumbnail" type="file" accept="image/*" hidden onChange={handleProgramVideoThumbnailUpload} />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Video URL</label>
+                              <input type="url" value={programVideoForm.video_url} onChange={(e) => setProgramVideoForm(prev => ({ ...prev, video_url: e.target.value }))} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 font-bold" placeholder="https://" />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Status</label>
+                            <select value={programVideoForm.status} onChange={(e) => setProgramVideoForm(prev => ({ ...prev, status: e.target.value }))} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 font-bold">
+                              <option value="Draft">Draft</option>
+                              <option value="Published">Published</option>
+                            </select>
+                          </div>
+                          <button type="submit" className="w-full bg-primary text-white py-3 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-primary/90 transition-colors">{isEditingProgramVideo ? 'Update Program Video' : 'Save Program Video'}</button>
                         </form>
                       </div>
                     </div>

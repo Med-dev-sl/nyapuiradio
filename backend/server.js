@@ -781,6 +781,130 @@ app.delete('/api/news/:id', authenticate, async (req, res) => {
   }
 });
 
+// ─── PODCASTS ROUTES ─────────────────────────────────────────────────────────
+app.get('/api/podcasts', authenticate, async (req, res) => {
+  try {
+    const rows = await db.all('SELECT * FROM podcasts ORDER BY created_at DESC;');
+    res.json(rows);
+  } catch (err) {
+    console.error('GET /api/podcasts error', err);
+    res.status(500).json({ error: 'Error fetching podcasts' });
+  }
+});
+
+app.get('/api/podcasts/:id', authenticate, async (req, res) => {
+  try {
+    const row = await db.get('SELECT * FROM podcasts WHERE id = ?', [req.params.id]);
+    if (!row) return res.status(404).json({ error: 'Podcast not found' });
+    res.json(row);
+  } catch (err) {
+    res.status(500).json({ error: 'Error fetching podcast' });
+  }
+});
+
+app.post('/api/podcasts', authenticate, async (req, res) => {
+  const { title, description, thumbnail, video_url, status } = req.body;
+  if (!title) return res.status(400).json({ error: 'Podcast title is required' });
+  try {
+    const result = await db.run('INSERT INTO podcasts (title, description, thumbnail, video_url, status) VALUES (?, ?, ?, ?, ?)', [title, description || '', thumbnail || '', video_url || '', status || 'Draft']);
+    await logAction(req.userId, 'CREATE_PODCAST', `Created podcast: ${title}`, 'podcast', result.lastID);
+    res.status(201).json({ id: result.lastID, title });
+  } catch (err) {
+    console.error('POST /api/podcasts error', err);
+    res.status(500).json({ error: 'Error creating podcast' });
+  }
+});
+
+app.put('/api/podcasts/:id', authenticate, async (req, res) => {
+  const { id } = req.params;
+  const { title, description, thumbnail, video_url, status } = req.body;
+  if (!title) return res.status(400).json({ error: 'Podcast title is required' });
+  try {
+    const result = await db.run('UPDATE podcasts SET title = ?, description = ?, thumbnail = ?, video_url = ?, status = ? WHERE id = ?', [title, description || '', thumbnail || '', video_url || '', status || 'Draft', id]);
+    if (result.changes === 0) return res.status(404).json({ error: 'Podcast not found' });
+    await logAction(req.userId, 'UPDATE_PODCAST', `Updated podcast: ${title}`, 'podcast', id);
+    res.json({ message: 'Podcast updated successfully' });
+  } catch (err) {
+    console.error('PUT /api/podcasts error', err);
+    res.status(500).json({ error: 'Error updating podcast' });
+  }
+});
+
+app.delete('/api/podcasts/:id', authenticate, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await db.run('DELETE FROM podcasts WHERE id = ?', [id]);
+    if (result.changes === 0) return res.status(404).json({ error: 'Podcast not found' });
+    await logAction(req.userId, 'DELETE_PODCAST', `Deleted podcast ID: ${id}`, 'podcast', id);
+    res.json({ message: 'Podcast deleted successfully' });
+  } catch (err) {
+    console.error('DELETE /api/podcasts error', err);
+    res.status(500).json({ error: 'Error deleting podcast' });
+  }
+});
+
+// ─── PROGRAM VIDEOS ROUTES ───────────────────────────────────────────────────
+app.get('/api/program-videos', authenticate, async (req, res) => {
+  try {
+    const rows = await db.all(`SELECT pv.*, p.title AS program_title FROM program_videos pv LEFT JOIN programs p ON pv.program_id = p.id ORDER BY pv.created_at DESC;`);
+    res.json(rows);
+  } catch (err) {
+    console.error('GET /api/program-videos error', err);
+    res.status(500).json({ error: 'Error fetching program videos' });
+  }
+});
+
+app.get('/api/program-videos/:id', authenticate, async (req, res) => {
+  try {
+    const row = await db.get(`SELECT pv.*, p.title AS program_title FROM program_videos pv LEFT JOIN programs p ON pv.program_id = p.id WHERE pv.id = ?`, [req.params.id]);
+    if (!row) return res.status(404).json({ error: 'Program video not found' });
+    res.json(row);
+  } catch (err) {
+    res.status(500).json({ error: 'Error fetching program video' });
+  }
+});
+
+app.post('/api/program-videos', authenticate, async (req, res) => {
+  const { program_id, title, description, thumbnail, video_url, status } = req.body;
+  if (!program_id || !title) return res.status(400).json({ error: 'Program and title are required' });
+  try {
+    const result = await db.run('INSERT INTO program_videos (program_id, title, description, thumbnail, video_url, status) VALUES (?, ?, ?, ?, ?, ?)', [program_id, title, description || '', thumbnail || '', video_url || '', status || 'Draft']);
+    await logAction(req.userId, 'CREATE_PROGRAM_VIDEO', `Created program video: ${title}`, 'program_video', result.lastID);
+    res.status(201).json({ id: result.lastID, title });
+  } catch (err) {
+    console.error('POST /api/program-videos error', err);
+    res.status(500).json({ error: 'Error creating program video' });
+  }
+});
+
+app.put('/api/program-videos/:id', authenticate, async (req, res) => {
+  const { id } = req.params;
+  const { program_id, title, description, thumbnail, video_url, status } = req.body;
+  if (!program_id || !title) return res.status(400).json({ error: 'Program and title are required' });
+  try {
+    const result = await db.run('UPDATE program_videos SET program_id = ?, title = ?, description = ?, thumbnail = ?, video_url = ?, status = ? WHERE id = ?', [program_id, title, description || '', thumbnail || '', video_url || '', status || 'Draft', id]);
+    if (result.changes === 0) return res.status(404).json({ error: 'Program video not found' });
+    await logAction(req.userId, 'UPDATE_PROGRAM_VIDEO', `Updated program video: ${title}`, 'program_video', id);
+    res.json({ message: 'Program video updated successfully' });
+  } catch (err) {
+    console.error('PUT /api/program-videos error', err);
+    res.status(500).json({ error: 'Error updating program video' });
+  }
+});
+
+app.delete('/api/program-videos/:id', authenticate, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await db.run('DELETE FROM program_videos WHERE id = ?', [id]);
+    if (result.changes === 0) return res.status(404).json({ error: 'Program video not found' });
+    await logAction(req.userId, 'DELETE_PROGRAM_VIDEO', `Deleted program video ID: ${id}`, 'program_video', id);
+    res.json({ message: 'Program video deleted successfully' });
+  } catch (err) {
+    console.error('DELETE /api/program-videos error', err);
+    res.status(500).json({ error: 'Error deleting program video' });
+  }
+});
+
 // ─── SERVICES ROUTES ──────────────────────────────────────────────────────────
 app.get('/api/services', async (req, res) => {
   try {
