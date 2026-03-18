@@ -1,7 +1,7 @@
 import React from 'react';
 import Logo from '../common/Logo';
 
-const navItems = [
+export const navItems = [
   { key: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
   { key: 'tasks', label: 'Tasks', icon: 'task_alt' },
   { key: 'broadcasts', label: 'Broadcasts', icon: 'broadcast_on_home' },
@@ -19,12 +19,23 @@ const navItems = [
   { key: 'volunteers', label: 'Volunteers', icon: 'group' },
   { key: 'social', label: 'Social Nexus', icon: 'share_reviews' },
   { key: 'analytics', label: 'Analytics', icon: 'analytics' },
+  { key: 'users', label: 'User Management', icon: 'manage_accounts' },
 ];
 
 const Sidebar = ({ user, active, onSelect, isOpen, onClose }) => {
+  const permissions = user?.permissions || {};
+  const isSuperuser = user?.role === 'superuser';
+
+  const canAccess = (key) => {
+    if (isSuperuser) return true;
+    if (key === 'dashboard') return true;
+    return permissions[key]?.read;
+  };
+
+  const filteredNavItems = navItems.filter(item => canAccess(item.key));
+
   return (
     <>
-      {/* Mobile Overlay */}
       <div 
         className={`fixed inset-0 bg-slate-950/40 backdrop-blur-sm z-40 md:hidden transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         onClick={onClose}
@@ -47,7 +58,7 @@ const Sidebar = ({ user, active, onSelect, isOpen, onClose }) => {
         <nav className="flex-1 px-4 space-y-1 overflow-y-auto custom-scrollbar">
           <div className="pb-2">
             <p className="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Main Menu</p>
-            {navItems.slice(0, 5).map((item) => {
+            {filteredNavItems.slice(0, 5).map((item) => {
               const isActive = active === item.key;
               return (
                 <button
@@ -70,7 +81,7 @@ const Sidebar = ({ user, active, onSelect, isOpen, onClose }) => {
 
           <div className="pt-4 pb-2 border-t border-primary/5">
             <p className="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Resources</p>
-            {navItems.slice(5).map((item) => {
+            {filteredNavItems.slice(5).map((item) => {
               const isActive = active === item.key;
               return (
                 <button
@@ -132,4 +143,3 @@ const Sidebar = ({ user, active, onSelect, isOpen, onClose }) => {
 };
 
 export default Sidebar;
-

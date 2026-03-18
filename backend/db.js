@@ -58,7 +58,7 @@ async function initializeSchema() {
   await runSql(`CREATE TABLE IF NOT EXISTS donors (id ${idType}, name ${textType} NOT NULL, email ${textType}, amount ${realType} NOT NULL, date ${textType} NOT NULL);`);
   await runSql(`CREATE TABLE IF NOT EXISTS folders (id ${idType}, name ${textType} NOT NULL, parent_id INTEGER, created_at ${timestampType});`);
   await runSql(`CREATE TABLE IF NOT EXISTS media (id ${idType}, name ${textType} NOT NULL, type ${textType} NOT NULL, size INTEGER, url ${textType} NOT NULL, folder_id INTEGER, upload_date ${textType}, created_at ${timestampType} ${isPostgres ? ', CONSTRAINT fk_folder FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE CASCADE' : ', FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE CASCADE'});`);
-  await runSql(`CREATE TABLE IF NOT EXISTS users (id ${idType}, username ${textType} UNIQUE NOT NULL, password_hash ${textType} NOT NULL, role ${textType} NOT NULL, full_name ${textType}, user_email ${textType}, bio ${textType}, profile_picture ${textType});`);
+  await runSql(`CREATE TABLE IF NOT EXISTS users (id ${idType}, username ${textType} UNIQUE NOT NULL, password_hash ${textType} NOT NULL, role ${textType} NOT NULL, permissions ${textType}, full_name ${textType}, user_email ${textType}, bio ${textType}, profile_picture ${textType});`);
   await runSql(`CREATE TABLE IF NOT EXISTS audit_logs (id ${idType}, user_id INTEGER, action ${textType} NOT NULL, details ${textType}, target_type ${textType}, target_id INTEGER, created_at ${timestampType} ${isPostgres ? ', CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users(id)' : ', FOREIGN KEY (user_id) REFERENCES users(id)'});`);
   await runSql(`CREATE TABLE IF NOT EXISTS tasks (id ${idType}, creator_id INTEGER, title ${textType} NOT NULL, description ${textType}, category ${textType} NOT NULL, priority ${textType} DEFAULT 'Medium', status ${textType} DEFAULT 'Pending', due_date ${textType}, created_at ${timestampType} ${isPostgres ? ', CONSTRAINT fk_creator FOREIGN KEY (creator_id) REFERENCES users(id)' : ', FOREIGN KEY (creator_id) REFERENCES users(id)'});`);
   await runSql(`CREATE TABLE IF NOT EXISTS partners (id ${idType}, name ${textType} NOT NULL, logo ${textType}, type ${textType}, contact_person ${textType}, email ${textType}, phone ${textType}, status ${textType} DEFAULT 'Active', agreement_date ${textType}, notes ${textType}, created_at ${timestampType});`);
@@ -88,6 +88,7 @@ async function initializeSchema() {
   await tryAddCol('users', 'user_email', 'TEXT');
   await tryAddCol('users', 'bio', 'TEXT');
   await tryAddCol('users', 'profile_picture', 'TEXT');
+  await tryAddCol('users', 'permissions', 'TEXT');
   await tryAddCol('media', 'upload_date', 'TEXT');
   await tryAddCol('staff', 'facebook', 'TEXT');
   await tryAddCol('staff', 'instagram', 'TEXT');

@@ -57,7 +57,7 @@ app.post('/api/auth/login', async (req, res) => {
   }
 
   try {
-    const user = await db.get('SELECT id, username, password_hash, role, full_name, user_email, bio, profile_picture FROM users WHERE username = ?;', [username]);
+    const user = await db.get('SELECT id, username, password_hash, role, permissions, full_name, user_email, bio, profile_picture FROM users WHERE username = ?;', [username]);
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
@@ -79,6 +79,7 @@ app.post('/api/auth/login', async (req, res) => {
       id: user.id, 
       username: user.username, 
       role: user.role,
+      permissions: user.permissions ? JSON.parse(user.permissions) : {},
       full_name: user.full_name,
       user_email: user.user_email,
       bio: user.bio,
@@ -92,8 +93,8 @@ app.post('/api/auth/login', async (req, res) => {
 
 app.get('/api/auth/me', authenticate, async (req, res) => {
   try {
-    const user = await db.get('SELECT id, username, role, full_name, user_email, bio, profile_picture FROM users WHERE id = ?;', [req.user.id]);
-    res.json({ user });
+    const user = await db.get('SELECT id, username, role, permissions, full_name, user_email, bio, profile_picture FROM users WHERE id = ?;', [req.user.id]);
+    res.json({ user: { ...user, permissions: user.permissions ? JSON.parse(user.permissions) : {} } });
   } catch (err) {
     res.status(500).json({ error: 'Error fetching user data' });
   }
@@ -120,10 +121,118 @@ app.put('/api/auth/me', authenticate, async (req, res) => {
 
 app.get('/api/users', authenticate, async (req, res) => {
   try {
-    const rows = await db.all('SELECT id, username, full_name FROM users ORDER BY username ASC;');
-    res.json(rows);
+    const rows = await db.all('SELECT id, username, role, permissions, full_name, user_email, bio, profile_picture FROM users ORDER BY username ASC;');
+    const users = rows.map(u => ({
+      ...u,
+      permissions: u.permissions ? JSON.parse(u.permissions) : {}
+    }));
+    res.json(users);
   } catch (err) {
+    console.error('GET /api/users error', err);
     res.status(500).json({ error: 'Error fetching users' });
+  }
+});
+
+app.post('/api/users', authenticate, async (req, res) => {
+  const { username, password, role, permissions, full_name, user_email, bio, profile_picture } = req.body;
+  if (!username || !password || !role) {
+    return res.status(400).json({ error: 'Username, password, and role are required' });
+  }
+
+  if (username.length < 3) {
+    return res.status(400).json({ error: 'Username must be at least 3 characters long' });
+  }
+
+  if (password.length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+  }
+
+  try {
+    // Check if username already exists
+    const existingUser = await db.get('SELECT id FROM users WHERE username = ?', [username]);
+    if (existingUser) {
+      return res.status(409).json({ error: 'Username already exists. Please choose a different username.' });
+    }
+
+    const passwordHash = hashPassword(password);
+    const permissionsJson = JSON.stringify(permissions || {});
+    
+    const result = await db.run(
+      'INSERT INTO users (username, password_hash, role, permissions, full_name, user_email, bio, profile_picture) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [username, passwordHash, role, permissionsJson, full_name, user_email, bio, profile_picture]
+    );
+
+    await logAction(req.userId, 'CREATE_USER', `Created user: ${username} (${role})`, 'user', result.lastID);
+    res.status(201).json({ id: result.lastID, username, role });
+  } catch (err) {
+    console.error('POST /api/users error', err);
+    res.status(500).json({ error: 'Error creating user' });
+  }
+});
+
+app.put('/api/users/:id', authenticate, async (req, res) => {
+  const { id } = req.params;
+  const { username, password, role, permissions, full_name, user_email, bio, profile_picture } = req.body;
+
+  if (!username || !role) {
+    return res.status(400).json({ error: 'Username and role are required' });
+  }
+
+  try {
+    // Get current user to check if username is being changed
+    const currentUser = await db.get('SELECT username FROM users WHERE id = ?', [id]);
+    if (!currentUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Check if new username conflicts with existing users (and it's different from current)
+    if (username !== currentUser.username) {
+      const existingUser = await db.get('SELECT id FROM users WHERE username = ?', [username]);
+      if (existingUser) {
+        return res.status(409).json({ error: 'Username already exists. Please choose a different username.' });
+      }
+    }
+
+    let sql = 'UPDATE users SET username = ?, role = ?, permissions = ?, full_name = ?, user_email = ?, bio = ?, profile_picture = ?';
+    let params = [username, role, JSON.stringify(permissions || {}), full_name, user_email, bio, profile_picture];
+
+    if (password) {
+      if (password.length < 6) {
+        return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+      }
+      sql += ', password_hash = ?';
+      params.push(hashPassword(password));
+    }
+
+    sql += ' WHERE id = ?';
+    params.push(id);
+
+    const result = await db.run(sql, params);
+    if (result.changes === 0) return res.status(404).json({ error: 'User not found' });
+
+    await logAction(req.userId, 'UPDATE_USER', `Updated user: ${username}`, 'user', id);
+    res.json({ message: 'User updated successfully' });
+  } catch (err) {
+    console.error('PUT /api/users error', err);
+    res.status(500).json({ error: 'Error updating user' });
+  }
+});
+
+app.delete('/api/users/:id', authenticate, async (req, res) => {
+  const { id } = req.params;
+  try {
+    // Prevent deleting self
+    if (parseInt(id) === req.userId) {
+      return res.status(400).json({ error: 'You cannot delete your own account' });
+    }
+
+    const result = await db.run('DELETE FROM users WHERE id = ?', [id]);
+    if (result.changes === 0) return res.status(404).json({ error: 'User not found' });
+
+    await logAction(req.userId, 'DELETE_USER', `Deleted user ID: ${id}`, 'user', id);
+    res.json({ message: 'User deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ error: 'Error deleting user' });
   }
 });
 

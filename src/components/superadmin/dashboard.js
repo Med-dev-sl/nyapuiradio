@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import Sidebar from './sidebar';
+import Sidebar, { navItems } from './sidebar';
 import Modal from '../common/Modal';
 import Loading from './loading';
 import API_URL from '../../config';
@@ -35,6 +35,26 @@ const programDays = [
   'Friday',
   'Saturday',
   'Sunday'
+];
+
+const sidebarSections = [
+  { key: 'tasks', label: 'Tasks' },
+  { key: 'broadcasts', label: 'Broadcasts' },
+  { key: 'programs', label: 'Programs' },
+  { key: 'news', label: 'News' },
+  { key: 'podcasts', label: 'Podcasts' },
+  { key: 'program_videos', label: 'Program Videos' },
+  { key: 'services', label: 'Services' },
+  { key: 'assets', label: 'Assets' },
+  { key: 'media', label: 'Media Library' },
+  { key: 'audit', label: 'Audit Logs' },
+  { key: 'staff', label: 'Staff Directory' },
+  { key: 'donors', label: 'Donors' },
+  { key: 'partners', label: 'Partners' },
+  { key: 'volunteers', label: 'Volunteers' },
+  { key: 'social', label: 'Social Nexus' },
+  { key: 'analytics', label: 'Analytics' },
+  { key: 'users', label: 'User Management' },
 ];
 
 const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
@@ -116,6 +136,21 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
   const [socialPosts, setSocialPosts] = useState([]);
   const [socialForm, setSocialForm] = useState({ content: '', image: '', platforms: ['Facebook', 'Instagram'] });
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // User Management States
+  const [userForm, setUserForm] = useState({ 
+    username: '', 
+    password: '', 
+    role: 'staff', 
+    permissions: {}, 
+    full_name: '', 
+    user_email: '', 
+    bio: '', 
+    profile_picture: '' 
+  });
+  const [isEditingUser, setIsEditingUser] = useState(false);
+  const [currentUserManagementId, setCurrentUserManagementId] = useState(null);
+  const [userSearch, setUserSearch] = useState('');
 
   // Staff States
   const [staffList, setStaffList] = useState([]);
@@ -219,6 +254,12 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
   const [programVideoStatusFilter, setProgramVideoStatusFilter] = useState('All');
   const [isEditingProgramVideo, setIsEditingProgramVideo] = useState(false);
   const [currentProgramVideoId, setCurrentProgramVideoId] = useState(null);
+
+  const canPerform = useCallback((section, action) => {
+    if (user?.role === 'superuser') return true;
+    const permissions = user?.permissions || {};
+    return !!permissions[section]?.[action];
+  }, [user]);
 
   const showError = (msg) => {
     setModal({
@@ -694,6 +735,93 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
     }
   };
 
+  const handleUserSubmit = async (e) => {
+    e.preventDefault();
+    if (!userForm.username.trim() || (!isEditingUser && !userForm.password.trim())) {
+      showError('Username and password are required.');
+      return;
+    }
+
+    if (userForm.username.length < 3) {
+      showError('Username must be at least 3 characters long.');
+      return;
+    }
+
+    if (!isEditingUser && userForm.password.length < 6) {
+      showError('Password must be at least 6 characters long.');
+      return;
+    }
+
+    if (isEditingUser && userForm.password && userForm.password.length < 6) {
+      showError('Password must be at least 6 characters long.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const method = isEditingUser ? 'PUT' : 'POST';
+      const url = isEditingUser ? `${API_URL}/api/users/${currentUserManagementId}` : `${API_URL}/api/users`;
+      const resp = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(userForm)
+      });
+
+      if (!resp.ok) {
+        const errorData = await resp.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to save user');
+      }
+
+      setUserForm({ username: '', password: '', role: 'staff', permissions: {}, full_name: '', user_email: '', bio: '', profile_picture: '' });
+      setIsEditingUser(false);
+      setCurrentUserManagementId(null);
+      showSuccess(isEditingUser ? 'User account updated successfully.' : 'New user account created successfully.', 'User Management');
+      fetchUsers();
+    } catch (err) {
+      showError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleUserDelete = async (id) => {
+    if (!window.confirm('Delete this user account permanently?')) return;
+    try {
+      const resp = await fetch(`${API_URL}/api/users/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+      if (resp.ok) {
+        showSuccess('User removed from system.', 'User Deleted');
+        fetchUsers();
+      } else {
+        const errorData = await resp.json().catch(() => ({}));
+        showError(errorData.error || 'Failed to delete user');
+      }
+    } catch (err) {
+      showError('Network error while deleting user');
+    }
+  };
+
+  const handleUserImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 512 * 1024) {
+        showError('Profile picture exceeds 512KB.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => setUserForm(prev => ({ ...prev, profile_picture: reader.result }));
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const toggleUserPermission = (section, action) => {
+    setUserForm(prev => {
+      const newPerms = { ...prev.permissions };
+      if (!newPerms[section]) newPerms[section] = { read: false, create: false, update: false, delete: false };
+      newPerms[section][action] = !newPerms[section][action];
+      return { ...prev, permissions: newPerms };
+    });
+  };
+
   useEffect(() => {
     fetchStations();
     fetchDonors();
@@ -743,6 +871,9 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
     }
     if (activeSection === 'staff') {
       fetchStaff();
+    }
+    if (activeSection === 'users') {
+      fetchUsers();
     }
   }, [activeSection, currentFolderId, fetchFolders, fetchMediaFiles, fetchMediaStats, fetchAuditLogs, fetchTasks, fetchUsers, fetchPartners, fetchAnalyticsSummary, fetchSocialHistory, fetchPrograms, fetchServices, fetchServiceBookings, fetchStaff, fetchNews, fetchPodcasts, fetchProgramVideos]);
 
@@ -1654,6 +1785,19 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
       }
       const reader = new FileReader();
       reader.onloadend = () => setServiceForm(prev => ({ ...prev, image: reader.result }));
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSocialImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 512 * 1024) {
+        showError('Image exceeds 512KB.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => setSocialForm(prev => ({ ...prev, image: reader.result }));
       reader.readAsDataURL(file);
     }
   };
@@ -2741,18 +2885,20 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
                           <p className="text-sm text-slate-500 font-medium mt-1">Manage staff profiles and full contact details</p>
                         </div>
                         <div className="flex gap-3">
-                          <button
-                            onClick={() => {
-                              setIsEditingStaff(false);
-                              setStaffForm({
-                                full_name: '', role: '', email: '', phone: '', image: '', bio: '', status: 'Active', joined_date: new Date().toISOString().split('T')[0]
-                              });
-                            }}
-                            className="px-6 py-3 bg-primary text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
-                          >
-                            <span className="material-symbols-outlined text-sm">add</span>
-                            New Staff
-                          </button>
+                          {canPerform('staff', 'create') && (
+                            <button
+                              onClick={() => {
+                                setIsEditingStaff(false);
+                                setStaffForm({
+                                  full_name: '', role: '', email: '', phone: '', image: '', bio: '', status: 'Active', joined_date: new Date().toISOString().split('T')[0]
+                                });
+                              }}
+                              className="px-6 py-3 bg-primary text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
+                            >
+                              <span className="material-symbols-outlined text-sm">add</span>
+                              New Staff
+                            </button>
+                          )}
                         </div>
                       </div>
 
@@ -2806,8 +2952,12 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
                                 <div className="mt-4 pt-4 border-t border-primary/5 flex items-center justify-between">
                                   <div className="text-[10px] font-black text-slate-500">Joined: {s.joined_date?.slice(0,10)}</div>
                                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button onClick={() => { setStaffForm(s); setIsEditingStaff(true); setCurrentStaffId(s.id); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="p-1.5 text-primary hover:bg-primary/10 rounded-lg transition-colors"><span className="material-symbols-outlined text-sm">edit</span></button>
-                                    <button onClick={() => handleStaffDelete(s.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"><span className="material-symbols-outlined text-sm">delete</span></button>
+                                    {canPerform('staff', 'update') && (
+                                      <button onClick={() => { setStaffForm(s); setIsEditingStaff(true); setCurrentStaffId(s.id); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="p-1.5 text-primary hover:bg-primary/10 rounded-lg transition-colors"><span className="material-symbols-outlined text-sm">edit</span></button>
+                                    )}
+                                    {canPerform('staff', 'delete') && (
+                                      <button onClick={() => handleStaffDelete(s.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"><span className="material-symbols-outlined text-sm">delete</span></button>
+                                    )}
                                   </div>
                                 </div>
                               </div>
@@ -2816,69 +2966,76 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
                         </div>
                       </div>
 
-                      <div className="flex flex-col bg-white dark:bg-slate-800/40 rounded-3xl border border-primary/10 p-6 shadow-sm h-fit sticky top-8">
-                        <div className="flex items-center justify-between mb-8">
-                          <div>
-                            <h2 className="text-xl font-black">{isEditingStaff ? 'Edit Staff Profile' : 'Create Staff Profile'}</h2>
-                            <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1">Full staff detail capture</p>
+                      {(isEditingStaff ? canPerform('staff', 'update') : canPerform('staff', 'create')) ? (
+                        <div className="flex flex-col bg-white dark:bg-slate-800/40 rounded-3xl border border-primary/10 p-6 shadow-sm h-fit sticky top-8">
+                          <div className="flex items-center justify-between mb-8">
+                            <div>
+                              <h2 className="text-xl font-black">{isEditingStaff ? 'Edit Staff Profile' : 'Create Staff Profile'}</h2>
+                              <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1">Full staff detail capture</p>
+                            </div>
+                            {isEditingStaff && <button onClick={() => { setIsEditingStaff(false); setCurrentStaffId(null); setStaffForm({ full_name: '', role: '', email: '', phone: '', image: '', bio: '', status: 'Active', joined_date: new Date().toISOString().split('T')[0] }); }} className="text-[10px] text-rose-500 font-black uppercase tracking-widest hover:underline">Cancel</button>}
                           </div>
-                          {isEditingStaff && <button onClick={() => { setIsEditingStaff(false); setCurrentStaffId(null); setStaffForm({ full_name: '', role: '', email: '', phone: '', image: '', bio: '', status: 'Active', joined_date: new Date().toISOString().split('T')[0] }); }} className="text-[10px] text-rose-500 font-black uppercase tracking-widest hover:underline">Cancel</button>}
+
+                          <form className="space-y-6" onSubmit={handleStaffSubmit}>
+                            <div className="flex justify-center">
+                              <div className="relative group size-28 rounded-3xl border-2 border-dashed border-primary/10 flex flex-col items-center justify-center overflow-hidden hover:border-primary/40 cursor-pointer transition-all bg-slate-50 dark:bg-slate-900" onClick={() => document.getElementById('staff-image').click()}>
+                                {staffForm.image ? <img src={staffForm.image} alt="Profile" className="w-full h-full object-cover" /> : <><span className="material-symbols-outlined text-3xl text-primary/30">add_a_photo</span><p className="text-[8px] font-black text-slate-400 mt-2 uppercase tracking-widest text-center px-2">Staff Image</p></>}
+                                <input id="staff-image" type="file" hidden accept="image/*" onChange={handleStaffImageUpload} />
+                                <div className="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-3xl"><span className="material-symbols-outlined text-white">upload</span></div>
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Full Name</label>
+                              <input type="text" required value={staffForm.full_name} onChange={(e) => setStaffForm(prev => ({ ...prev, full_name: e.target.value }))} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 font-bold" placeholder="e.g. Jane Doe" />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Role</label>
+                                <input type="text" required value={staffForm.role} onChange={(e) => setStaffForm(prev => ({ ...prev, role: e.target.value }))} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 font-bold" placeholder="e.g. Program Manager" />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Email</label>
+                                <input type="email" required value={staffForm.email} onChange={(e) => setStaffForm(prev => ({ ...prev, email: e.target.value }))} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 font-bold" placeholder="name@company.com" />
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Phone</label>
+                                <input type="tel" value={staffForm.phone} onChange={(e) => setStaffForm(prev => ({ ...prev, phone: e.target.value }))} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 font-bold" placeholder="+123456789" />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Joined Date</label>
+                                <input type="date" value={staffForm.joined_date} onChange={(e) => setStaffForm(prev => ({ ...prev, joined_date: e.target.value }))} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 font-bold" />
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Bio</label>
+                              <textarea value={staffForm.bio} onChange={(e) => setStaffForm(prev => ({ ...prev, bio: e.target.value }))} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 font-bold resize-none" rows="3" placeholder="Short staff biography..." />
+                            </div>
+
+                            <div>
+                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Status</label>
+                              <select value={staffForm.status} onChange={(e) => setStaffForm(prev => ({ ...prev, status: e.target.value }))} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 font-bold">
+                                <option value="Active">Active</option>
+                                <option value="Inactive">Inactive</option>
+                              </select>
+                            </div>
+
+                            <button type="submit" disabled={submitting} className="w-full bg-primary text-white py-3 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-primary/90 transition-colors">
+                              {isEditingStaff ? 'Update Staff profile' : 'Add Staff profile'}
+                            </button>
+                          </form>
                         </div>
-
-                        <form className="space-y-6" onSubmit={handleStaffSubmit}>
-                          <div className="flex justify-center">
-                            <div className="relative group size-28 rounded-3xl border-2 border-dashed border-primary/10 flex flex-col items-center justify-center overflow-hidden hover:border-primary/40 cursor-pointer transition-all bg-slate-50 dark:bg-slate-900" onClick={() => document.getElementById('staff-image').click()}>
-                              {staffForm.image ? <img src={staffForm.image} alt="Profile" className="w-full h-full object-cover" /> : <><span className="material-symbols-outlined text-3xl text-primary/30">add_a_photo</span><p className="text-[8px] font-black text-slate-400 mt-2 uppercase tracking-widest text-center px-2">Staff Image</p></>}
-                              <input id="staff-image" type="file" hidden accept="image/*" onChange={handleStaffImageUpload} />
-                              <div className="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-3xl"><span className="material-symbols-outlined text-white">upload</span></div>
-                            </div>
-                          </div>
-
-                          <div>
-                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Full Name</label>
-                            <input type="text" required value={staffForm.full_name} onChange={(e) => setStaffForm(prev => ({ ...prev, full_name: e.target.value }))} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 font-bold" placeholder="e.g. Jane Doe" />
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Role</label>
-                              <input type="text" required value={staffForm.role} onChange={(e) => setStaffForm(prev => ({ ...prev, role: e.target.value }))} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 font-bold" placeholder="e.g. Program Manager" />
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Email</label>
-                              <input type="email" required value={staffForm.email} onChange={(e) => setStaffForm(prev => ({ ...prev, email: e.target.value }))} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 font-bold" placeholder="name@company.com" />
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Phone</label>
-                              <input type="tel" value={staffForm.phone} onChange={(e) => setStaffForm(prev => ({ ...prev, phone: e.target.value }))} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 font-bold" placeholder="+123456789" />
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Joined Date</label>
-                              <input type="date" value={staffForm.joined_date} onChange={(e) => setStaffForm(prev => ({ ...prev, joined_date: e.target.value }))} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 font-bold" />
-                            </div>
-                          </div>
-
-                          <div>
-                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Bio</label>
-                            <textarea value={staffForm.bio} onChange={(e) => setStaffForm(prev => ({ ...prev, bio: e.target.value }))} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 font-bold resize-none" rows="3" placeholder="Short staff biography..." />
-                          </div>
-
-                          <div>
-                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">Status</label>
-                            <select value={staffForm.status} onChange={(e) => setStaffForm(prev => ({ ...prev, status: e.target.value }))} className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 font-bold">
-                              <option value="Active">Active</option>
-                              <option value="Inactive">Inactive</option>
-                            </select>
-                          </div>
-
-                          <button type="submit" disabled={submitting} className="w-full bg-primary text-white py-3 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-primary/90 transition-colors">
-                            {isEditingStaff ? 'Update Staff' : 'Add Staff'}
-                          </button>
-                        </form>
-                      </div>
+                      ) : (
+                        <div className="flex flex-col bg-slate-50 dark:bg-slate-900/40 rounded-3xl border border-primary/10 p-10 shadow-sm items-center justify-center text-center h-full">
+                          <span className="material-symbols-outlined text-5xl text-slate-300 mb-4">lock</span>
+                          <p className="text-slate-500 font-bold text-xs uppercase tracking-widest">You do not have permission to {isEditingStaff ? 'edit' : 'create'} staff profiles.</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </>
@@ -3527,23 +3684,27 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
                                   {t.priority}
                                 </span>
                                 <div className="opacity-0 group-hover:opacity-100 flex gap-1 transition-opacity">
-                                  <button onClick={() => {
-                                    setIsEditingTask(true);
-                                    setCurrentTaskId(t.id);
-                                    setTaskForm({ 
-                                      title: t.title, 
-                                      description: t.description || '', 
-                                      category: t.category, 
-                                      priority: t.priority, 
-                                      status: t.status, 
-                                      due_date: t.due_date 
-                                    });
-                                  }} className="p-1 text-primary hover:bg-primary/10 rounded-md">
-                                    <span className="material-symbols-outlined text-sm">edit</span>
-                                  </button>
-                                  <button onClick={() => handleTaskDelete(t.id)} className="p-1 text-red-500 hover:bg-red-50 rounded-md">
-                                    <span className="material-symbols-outlined text-sm">delete</span>
-                                  </button>
+                                  {canPerform('tasks', 'update') && (
+                                    <button onClick={() => {
+                                      setIsEditingTask(true);
+                                      setCurrentTaskId(t.id);
+                                      setTaskForm({ 
+                                        title: t.title, 
+                                        description: t.description || '', 
+                                        category: t.category, 
+                                        priority: t.priority, 
+                                        status: t.status, 
+                                        due_date: t.due_date 
+                                      });
+                                    }} className="p-1 text-primary hover:bg-primary/10 rounded-md">
+                                      <span className="material-symbols-outlined text-sm">edit</span>
+                                    </button>
+                                  )}
+                                  {canPerform('tasks', 'delete') && (
+                                    <button onClick={() => handleTaskDelete(t.id)} className="p-1 text-red-500 hover:bg-red-50 rounded-md">
+                                      <span className="material-symbols-outlined text-sm">delete</span>
+                                    </button>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -3574,89 +3735,96 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
                     </div>
                   </div>
 
-                  <div className="flex flex-col bg-white dark:bg-slate-800/40 rounded-2xl border border-primary/10 p-6 shadow-sm h-fit">
-                    <h2 className="text-xl font-bold mb-4">{isEditingTask ? 'Edit Coordination Task' : 'New Strategic Task'}</h2>
-                    <form className="space-y-4" onSubmit={handleTaskSubmit}>
-                      <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Task Title</label>
-                        <input
-                          type="text"
-                          required
-                          value={taskForm.title}
-                          onChange={(e) => setTaskForm(prev => ({ ...prev, title: e.target.value }))}
-                          className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20"
-                          placeholder="e.g. Daily Equipment Check"
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
+                  {(isEditingTask ? canPerform('tasks', 'update') : canPerform('tasks', 'create')) ? (
+                    <div className="flex flex-col bg-white dark:bg-slate-800/40 rounded-2xl border border-primary/10 p-6 shadow-sm h-fit">
+                      <h2 className="text-xl font-bold mb-4">{isEditingTask ? 'Edit Coordination Task' : 'New Strategic Task'}</h2>
+                      <form className="space-y-4" onSubmit={handleTaskSubmit}>
                         <div>
-                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Category</label>
-                          <select
-                            value={taskForm.category}
-                            onChange={(e) => setTaskForm(prev => ({ ...prev, category: e.target.value }))}
+                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Task Title</label>
+                          <input
+                            type="text"
+                            required
+                            value={taskForm.title}
+                            onChange={(e) => setTaskForm(prev => ({ ...prev, title: e.target.value }))}
                             className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20"
-                          >
-                            <option value="Daily">Daily</option>
-                            <option value="Weekly">Weekly</option>
-                          </select>
+                            placeholder="e.g. Daily Equipment Check"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Category</label>
+                            <select
+                              value={taskForm.category}
+                              onChange={(e) => setTaskForm(prev => ({ ...prev, category: e.target.value }))}
+                              className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20"
+                            >
+                              <option value="Daily">Daily</option>
+                              <option value="Weekly">Weekly</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Priority</label>
+                            <select
+                              value={taskForm.priority}
+                              onChange={(e) => setTaskForm(prev => ({ ...prev, priority: e.target.value }))}
+                              className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20"
+                            >
+                              <option value="Low">Low</option>
+                              <option value="Medium">Medium</option>
+                              <option value="High">High</option>
+                            </select>
+                          </div>
                         </div>
                         <div>
-                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Priority</label>
-                          <select
-                            value={taskForm.priority}
-                            onChange={(e) => setTaskForm(prev => ({ ...prev, priority: e.target.value }))}
+                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Deadline</label>
+                          <input
+                            type="date"
+                            required
+                            value={taskForm.due_date}
+                            onChange={(e) => setTaskForm(prev => ({ ...prev, due_date: e.target.value }))}
                             className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20"
-                          >
-                            <option value="Low">Low</option>
-                            <option value="Medium">Medium</option>
-                            <option value="High">High</option>
-                          </select>
+                          />
                         </div>
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Deadline</label>
-                        <input
-                          type="date"
-                          required
-                          value={taskForm.due_date}
-                          onChange={(e) => setTaskForm(prev => ({ ...prev, due_date: e.target.value }))}
-                          className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Description (Optional)</label>
-                        <textarea
-                          rows="3"
-                          value={taskForm.description}
-                          onChange={(e) => setTaskForm(prev => ({ ...prev, description: e.target.value }))}
-                          className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 resize-none"
-                          placeholder="Describe the objective..."
-                        ></textarea>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          type="submit"
-                          disabled={submitting}
-                          className="flex-1 py-3 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
-                        >
-                          {submitting ? 'Syncing...' : isEditingTask ? 'Update Task' : 'Launch Task'}
-                        </button>
-                        {isEditingTask && (
+                        <div>
+                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Description (Optional)</label>
+                          <textarea
+                            rows="3"
+                            value={taskForm.description}
+                            onChange={(e) => setTaskForm(prev => ({ ...prev, description: e.target.value }))}
+                            className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 resize-none"
+                            placeholder="Describe the objective..."
+                          ></textarea>
+                        </div>
+                        <div className="flex gap-2">
                           <button
-                            type="button"
-                            onClick={() => {
-                              setIsEditingTask(false);
-                              setCurrentTaskId(null);
-                              setTaskForm({ title: '', description: '', category: 'Daily', priority: 'Medium', status: 'Pending', due_date: new Date().toISOString().split('T')[0] });
-                            }}
-                            className="px-4 py-3 border border-slate-200 text-slate-500 font-bold rounded-xl hover:bg-slate-50 transition-all"
+                            type="submit"
+                            disabled={submitting}
+                            className="flex-1 py-3 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
                           >
-                            Cancel
+                            {submitting ? 'Syncing...' : isEditingTask ? 'Update Task' : 'Launch Task'}
                           </button>
-                        )}
-                      </div>
-                    </form>
-                  </div>
+                          {isEditingTask && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsEditingTask(false);
+                                setCurrentTaskId(null);
+                                setTaskForm({ title: '', description: '', category: 'Daily', priority: 'Medium', status: 'Pending', due_date: new Date().toISOString().split('T')[0] });
+                              }}
+                              className="px-4 py-3 border border-slate-200 text-slate-500 font-bold rounded-xl hover:bg-slate-50 transition-all"
+                            >
+                              Cancel
+                            </button>
+                          )}
+                        </div>
+                      </form>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col bg-slate-50 dark:bg-slate-900/40 rounded-2xl border border-primary/10 p-10 shadow-sm items-center justify-center text-center h-full">
+                      <span className="material-symbols-outlined text-4xl text-slate-300 mb-2">lock</span>
+                      <p className="text-slate-500 font-bold text-xs uppercase tracking-widest">You do not have permission to {isEditingTask ? 'edit' : 'create'} tasks.</p>
+                    </div>
+                  )}
                 </>
               ) : activeSection === 'donors' ? (
                 <>
@@ -3763,24 +3931,28 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
                                 <td className="px-4 py-3 text-[11px] text-slate-500 font-bold">{new Date(d.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric'})}</td>
                                 <td className="px-4 py-3 text-right">
                                   <div className="flex gap-2 justify-end opacity-0 group-hover:opacity-100 transition-all translate-x-1 group-hover:translate-x-0">
-                                    <button 
-                                      onClick={() => {
-                                        setIsEditingDonor(true);
-                                        setCurrentDonorId(d.id);
-                                        setDonorForm({ name: d.name, email: d.email || '', amount: d.amount });
-                                      }}
-                                      className="p-1.5 text-primary hover:bg-primary/10 rounded-lg transition-colors"
-                                      title="Edit Record"
-                                    >
-                                      <span className="material-symbols-outlined text-sm">edit</span>
-                                    </button>
-                                    <button 
-                                      onClick={() => deleteDonor(d.id)}
-                                      className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                      title="Remove Donor"
-                                    >
-                                      <span className="material-symbols-outlined text-sm">delete</span>
-                                    </button>
+                                    {canPerform('donors', 'update') && (
+                                      <button 
+                                        onClick={() => {
+                                          setIsEditingDonor(true);
+                                          setCurrentDonorId(d.id);
+                                          setDonorForm({ name: d.name, email: d.email || '', amount: d.amount });
+                                        }}
+                                        className="p-1.5 text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                                        title="Edit Record"
+                                      >
+                                        <span className="material-symbols-outlined text-sm">edit</span>
+                                      </button>
+                                    )}
+                                    {canPerform('donors', 'delete') && (
+                                      <button 
+                                        onClick={() => deleteDonor(d.id)}
+                                        className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                        title="Remove Donor"
+                                      >
+                                        <span className="material-symbols-outlined text-sm">delete</span>
+                                      </button>
+                                    )}
                                   </div>
                                 </td>
                               </tr>
@@ -3789,72 +3961,6 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
                         </table>
                       </div>
                     )}
-                  </div>
-
-                  <div className="flex flex-col bg-white dark:bg-slate-800/40 rounded-2xl border border-primary/10 p-6 shadow-sm h-fit">
-                    <h2 className="text-xl font-bold mb-4">{isEditingDonor ? 'Edit Donor Details' : 'Record Donation'}</h2>
-                    <form className="space-y-4" onSubmit={addDonor}>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-600 dark:text-slate-200">
-                          Donor Name
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={donorForm.name}
-                          onChange={(e) => setDonorForm((prev) => ({ ...prev, name: e.target.value }))}
-                          className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-slate-900 focus:border-primary focus:outline-none dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-                          placeholder="John Doe"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-600 dark:text-slate-200">
-                          Email (Optional)
-                        </label>
-                        <input
-                          type="email"
-                          value={donorForm.email}
-                          onChange={(e) => setDonorForm((prev) => ({ ...prev, email: e.target.value }))}
-                          className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-slate-900 focus:border-primary focus:outline-none dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-                          placeholder="john@example.com"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-600 dark:text-slate-200">
-                          Amount (SLe)
-                        </label>
-                        <input
-                          type="number"
-                          required
-                          value={donorForm.amount}
-                          onChange={(e) => setDonorForm((prev) => ({ ...prev, amount: parseFloat(e.target.value) || '' }))}
-                          className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-slate-900 focus:border-primary focus:outline-none dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-                          placeholder="0.00"
-                        />
-                      </div>
-                      <div className="flex gap-3">
-                        <button
-                          type="submit"
-                          disabled={submitting}
-                          className="flex-1 py-2.5 rounded-xl bg-primary text-white font-bold hover:bg-primary/90 transition-colors disabled:opacity-60 shadow-lg shadow-primary/20"
-                        >
-                          {submitting ? 'Processing...' : isEditingDonor ? 'Update Donor' : 'Save Contribution'}
-                        </button>
-                        {isEditingDonor && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsEditingDonor(false);
-                              setCurrentDonorId(null);
-                              setDonorForm({ name: '', email: '', amount: '' });
-                            }}
-                            className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-500 font-bold hover:bg-slate-50 transition-colors"
-                          >
-                            Cancel
-                          </button>
-                        )}
-                      </div>
-                    </form>
                   </div>
                 </>
               ) : activeSection === 'partners' ? (
@@ -3938,16 +4044,20 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
                             <div className="text-[10px] text-slate-500 mt-1 font-medium">{p.contact_person || 'No contact set'}</div>
                           </div>
                           <div className="opacity-0 group-hover:opacity-100 flex flex-col gap-1 transition-opacity">
-                            <button onClick={() => {
-                              setIsEditingPartner(true);
-                              setCurrentPartnerId(p.id);
-                              setPartnerForm({ ...p, notes: p.notes || '' });
-                            }} className="p-1.5 text-primary hover:bg-primary/10 rounded-lg">
-                              <span className="material-symbols-outlined text-[18px]">edit</span>
-                            </button>
-                            <button onClick={() => handlePartnerDelete(p.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg">
-                              <span className="material-symbols-outlined text-[18px]">delete</span>
-                            </button>
+                            {canPerform('partners', 'update') && (
+                              <button onClick={() => {
+                                setIsEditingPartner(true);
+                                setCurrentPartnerId(p.id);
+                                setPartnerForm({ ...p, notes: p.notes || '' });
+                              }} className="p-1.5 text-primary hover:bg-primary/10 rounded-lg">
+                                <span className="material-symbols-outlined text-[18px]">edit</span>
+                              </button>
+                            )}
+                            {canPerform('partners', 'delete') && (
+                              <button onClick={() => handlePartnerDelete(p.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg">
+                                <span className="material-symbols-outlined text-[18px]">delete</span>
+                              </button>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -3960,136 +4070,143 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
                     )}
                   </div>
 
-                  <div className="flex flex-col bg-white dark:bg-slate-800/40 rounded-2xl border border-primary/10 p-6 shadow-sm h-fit">
-                    <div className="flex items-center justify-between mb-6">
-                      <h2 className="text-xl font-bold">{isEditingPartner ? 'Edit Profile' : 'New Partnership'}</h2>
-                      <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                        <span className="material-symbols-outlined text-sm">{isEditingPartner ? 'edit_note' : 'add_link'}</span>
+                  {(isEditingPartner ? canPerform('partners', 'update') : canPerform('partners', 'create')) ? (
+                    <div className="flex flex-col bg-white dark:bg-slate-800/40 rounded-2xl border border-primary/10 p-6 shadow-sm h-fit">
+                      <div className="flex items-center justify-between mb-6">
+                        <h2 className="text-xl font-bold">{isEditingPartner ? 'Edit Profile' : 'New Partnership'}</h2>
+                        <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                          <span className="material-symbols-outlined text-sm">{isEditingPartner ? 'edit_note' : 'add_link'}</span>
+                        </div>
                       </div>
-                    </div>
-                    
-                    <form className="space-y-4" onSubmit={handlePartnerSubmit}>
-                      <div className="flex justify-center mb-6">
-                        <div className="relative group cursor-pointer" onClick={() => document.getElementById('partner-logo').click()}>
-                          <div className="size-24 rounded-2xl bg-slate-50 dark:bg-slate-900 border-2 border-dashed border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center overflow-hidden transition-all group-hover:border-primary/40">
-                            {partnerForm.logo ? (
-                              <img src={partnerForm.logo} alt="Preview" className="w-full h-full object-contain" />
-                            ) : (
-                              <>
-                                <span className="material-symbols-outlined text-slate-300 text-3xl">add_photo_alternate</span>
-                                <p className="text-[8px] font-black text-slate-400 mt-1 uppercase tracking-tighter">Identity Logo</p>
-                              </>
-                            )}
+                      
+                      <form className="space-y-4" onSubmit={handlePartnerSubmit}>
+                        <div className="flex justify-center mb-6">
+                          <div className="relative group cursor-pointer" onClick={() => document.getElementById('partner-logo').click()}>
+                            <div className="size-24 rounded-2xl bg-slate-50 dark:bg-slate-900 border-2 border-dashed border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center overflow-hidden transition-all group-hover:border-primary/40">
+                              {partnerForm.logo ? (
+                                <img src={partnerForm.logo} alt="Preview" className="w-full h-full object-contain" />
+                              ) : (
+                                <>
+                                  <span className="material-symbols-outlined text-slate-300 text-3xl">add_photo_alternate</span>
+                                  <p className="text-[8px] font-black text-slate-400 mt-1 uppercase tracking-tighter">Identity Logo</p>
+                                </>
+                              )}
+                            </div>
+                            <input id="partner-logo" type="file" hidden accept="image/*" onChange={handlePartnerLogoUpload} />
+                            <div className="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-2xl">
+                              <span className="material-symbols-outlined text-white">upload</span>
+                            </div>
                           </div>
-                          <input id="partner-logo" type="file" hidden accept="image/*" onChange={handlePartnerLogoUpload} />
-                          <div className="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-2xl">
-                            <span className="material-symbols-outlined text-white">upload</span>
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Legal Entity Name</label>
+                          <input
+                            type="text"
+                            required
+                            value={partnerForm.name}
+                            onChange={(e) => setPartnerForm(prev => ({ ...prev, name: e.target.value }))}
+                            className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20"
+                            placeholder="e.g. UN Women Sierra Leone"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Category</label>
+                            <select
+                              value={partnerForm.type}
+                              onChange={(e) => setPartnerForm(prev => ({ ...prev, type: e.target.value }))}
+                              className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20"
+                            >
+                              <option value="NGO">Non-Governmental</option>
+                              <option value="Corporate">Corporate / Private</option>
+                              <option value="Government">Government / Agency</option>
+                              <option value="Media">Media / Broadcast</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Status</label>
+                            <select
+                              value={partnerForm.status}
+                              onChange={(e) => setPartnerForm(prev => ({ ...prev, status: e.target.value }))}
+                              className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20"
+                            >
+                              <option value="Active">Operational</option>
+                              <option value="Pending">On-Boarding</option>
+                              <option value="Inactive">Paused</option>
+                            </select>
                           </div>
                         </div>
-                      </div>
 
-                      <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Legal Entity Name</label>
-                        <input
-                          type="text"
-                          required
-                          value={partnerForm.name}
-                          onChange={(e) => setPartnerForm(prev => ({ ...prev, name: e.target.value }))}
-                          className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20"
-                          placeholder="e.g. UN Women Sierra Leone"
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Category</label>
-                          <select
-                            value={partnerForm.type}
-                            onChange={(e) => setPartnerForm(prev => ({ ...prev, type: e.target.value }))}
+                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Contact Primary</label>
+                          <input
+                            type="text"
+                            value={partnerForm.contact_person}
+                            onChange={(e) => setPartnerForm(prev => ({ ...prev, contact_person: e.target.value }))}
                             className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20"
-                          >
-                            <option value="NGO">Non-Governmental</option>
-                            <option value="Corporate">Corporate / Private</option>
-                            <option value="Government">Government / Agency</option>
-                            <option value="Media">Media / Broadcast</option>
-                          </select>
+                            placeholder="Focal Point Name"
+                          />
                         </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <input
+                            type="email"
+                            value={partnerForm.email}
+                            onChange={(e) => setPartnerForm(prev => ({ ...prev, email: e.target.value }))}
+                            className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-2.5 text-xs focus:ring-2 focus:ring-primary/20"
+                            placeholder="official@email.com"
+                          />
+                          <input
+                            type="tel"
+                            value={partnerForm.phone}
+                            onChange={(e) => setPartnerForm(prev => ({ ...prev, phone: e.target.value }))}
+                            className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-2.5 text-xs focus:ring-2 focus:ring-primary/20"
+                            placeholder="+232 Phone Number"
+                          />
+                        </div>
+
                         <div>
-                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Status</label>
-                          <select
-                            value={partnerForm.status}
-                            onChange={(e) => setPartnerForm(prev => ({ ...prev, status: e.target.value }))}
+                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Agreement Date</label>
+                          <input
+                            type="date"
+                            value={partnerForm.agreement_date}
+                            onChange={(e) => setPartnerForm(prev => ({ ...prev, agreement_date: e.target.value }))}
                             className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20"
-                          >
-                            <option value="Active">Operational</option>
-                            <option value="Pending">On-Boarding</option>
-                            <option value="Inactive">Paused</option>
-                          </select>
+                          />
                         </div>
-                      </div>
 
-                      <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Contact Primary</label>
-                        <input
-                          type="text"
-                          value={partnerForm.contact_person}
-                          onChange={(e) => setPartnerForm(prev => ({ ...prev, contact_person: e.target.value }))}
-                          className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20"
-                          placeholder="Focal Point Name"
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3">
-                        <input
-                          type="email"
-                          value={partnerForm.email}
-                          onChange={(e) => setPartnerForm(prev => ({ ...prev, email: e.target.value }))}
-                          className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-2.5 text-xs focus:ring-2 focus:ring-primary/20"
-                          placeholder="official@email.com"
-                        />
-                        <input
-                          type="tel"
-                          value={partnerForm.phone}
-                          onChange={(e) => setPartnerForm(prev => ({ ...prev, phone: e.target.value }))}
-                          className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-2.5 text-xs focus:ring-2 focus:ring-primary/20"
-                          placeholder="+232 Phone Number"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Agreement Date</label>
-                        <input
-                          type="date"
-                          value={partnerForm.agreement_date}
-                          onChange={(e) => setPartnerForm(prev => ({ ...prev, agreement_date: e.target.value }))}
-                          className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20"
-                        />
-                      </div>
-
-                      <div className="flex gap-2 pt-2">
-                        <button
-                          type="submit"
-                          disabled={submitting}
-                          className="flex-1 py-3 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
-                        >
-                          {submitting ? 'Syncing...' : isEditingPartner ? 'Update Partnership' : 'Seal Partnership'}
-                        </button>
-                        {isEditingPartner && (
+                        <div className="flex gap-2 pt-2">
                           <button
-                            type="button"
-                            onClick={() => {
-                              setIsEditingPartner(false);
-                              setCurrentPartnerId(null);
-                              setPartnerForm({ name: '', logo: '', type: 'NGO', contact_person: '', email: '', phone: '', status: 'Active', agreement_date: new Date().toISOString().split('T')[0], notes: '' });
-                            }}
-                            className="px-4 py-3 border border-slate-200 text-slate-500 font-bold rounded-xl hover:bg-slate-50 transition-all"
+                            type="submit"
+                            disabled={submitting}
+                            className="flex-1 py-3 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
                           >
-                            Cancel
+                            {submitting ? 'Syncing...' : isEditingPartner ? 'Update Partnership' : 'Seal Partnership'}
                           </button>
-                        )}
-                      </div>
-                    </form>
-                  </div>
+                          {isEditingPartner && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsEditingPartner(false);
+                                setCurrentPartnerId(null);
+                                setPartnerForm({ name: '', logo: '', type: 'NGO', contact_person: '', email: '', phone: '', status: 'Active', agreement_date: new Date().toISOString().split('T')[0], notes: '' });
+                              }}
+                              className="px-4 py-3 border border-slate-200 text-slate-500 font-bold rounded-xl hover:bg-slate-50 transition-all"
+                            >
+                              Cancel
+                            </button>
+                          )}
+                        </div>
+                      </form>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col bg-slate-50 dark:bg-slate-900/40 rounded-2xl border border-primary/10 p-10 shadow-sm items-center justify-center text-center h-full">
+                      <span className="material-symbols-outlined text-4xl text-slate-300 mb-2">lock</span>
+                      <p className="text-slate-500 font-bold text-xs uppercase tracking-widest">You do not have permission to {isEditingPartner ? 'edit' : 'create'} partnerships.</p>
+                    </div>
+                  )}
                 </>
               ) : activeSection === 'social' ? (
                 <>
@@ -4143,97 +4260,79 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
                     </div>
                   </div>
 
-                  <div className="flex flex-col bg-white dark:bg-slate-800/40 rounded-2xl border border-primary/10 p-6 shadow-sm h-fit sticky top-8">
-                     <div className="flex items-center justify-between mb-8">
-                        <h2 className="text-xl font-bold">Omni-Poster</h2>
-                        <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                            <span className="material-symbols-outlined text-sm">sync_alt</span>
-                        </div>
-                     </div>
+                  {canPerform('social', 'create') ? (
+                    <div className="flex flex-col bg-white dark:bg-slate-800/40 rounded-2xl border border-primary/10 p-6 shadow-sm h-fit sticky top-8">
+                       <div className="flex items-center justify-between mb-8">
+                          <h2 className="text-xl font-bold">Omni-Poster</h2>
+                          <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                              <span className="material-symbols-outlined text-sm">sync_alt</span>
+                          </div>
+                       </div>
 
-                     <form className="space-y-6" onSubmit={handleSocialSubmit}>
-                        <div>
-                           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Target Platforms</label>
-                           <div className="grid grid-cols-2 gap-2">
-                              {['Facebook', 'Instagram', 'X / Twitter', 'LinkedIn'].map(p => {
-                                 const isSelected = socialForm.platforms.includes(p);
-                                 return (
-                                    <button 
-                                       key={p}
-                                       type="button"
-                                       onClick={() => toggleSocialPlatform(p)}
-                                       className={`flex items-center justify-between px-3 py-2.5 rounded-xl border text-[10px] font-black uppercase transition-all ${
-                                          isSelected 
-                                          ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20 scale-[1.02]' 
-                                          : 'bg-slate-50 dark:bg-slate-900 border-transparent text-slate-500 hover:border-primary/20'
-                                       }`}
-                                    >
-                                       {p}
-                                       {isSelected && <span className="material-symbols-outlined text-[14px]">check_circle</span>}
-                                    </button>
-                                 );
-                              })}
-                           </div>
-                        </div>
+                       <form className="space-y-6" onSubmit={handleSocialSubmit}>
+                          <div>
+                             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Target Platforms</label>
+                             <div className="grid grid-cols-2 gap-2">
+                                {['Facebook', 'Instagram', 'X / Twitter', 'LinkedIn'].map(p => {
+                                   const isSelected = socialForm.platforms.includes(p);
+                                   return (
+                                      <button 
+                                         key={p}
+                                         type="button"
+                                         onClick={() => toggleSocialPlatform(p)}
+                                         className={`flex items-center justify-between px-3 py-2.5 rounded-xl border text-[10px] font-black uppercase transition-all ${
+                                            isSelected 
+                                            ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20 scale-[1.02]' 
+                                            : 'bg-slate-50 dark:bg-slate-900 border-transparent text-slate-500 hover:border-primary/20'
+                                         }`}
+                                      >
+                                         {p}
+                                         {isSelected && <span className="material-symbols-outlined text-[10px]">check_circle</span>}
+                                      </button>
+                                   );
+                                })}
+                             </div>
+                          </div>
 
-                        <div>
-                           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Content Blueprint</label>
-                           <textarea 
-                              required
-                              value={socialForm.content}
-                              onChange={(e) => setSocialForm(prev => ({ ...prev, content: e.target.value }))}
-                              className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-primary/20 min-h-[160px] resize-none"
-                              placeholder="Draft your global broadcast message here..."
-                           />
-                        </div>
+                          <div>
+                             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Content Blueprint</label>
+                             <textarea 
+                                required
+                                value={socialForm.content}
+                                onChange={(e) => setSocialForm(prev => ({ ...prev, content: e.target.value }))}
+                                className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-2xl p-4 text-xs font-medium focus:ring-2 focus:ring-primary/20 resize-none"
+                                rows="5"
+                                placeholder="What's happening across the nexus?"
+                             ></textarea>
+                          </div>
 
-                        <div>
-                           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Visual Asset</label>
-                           <div 
-                              className="relative group h-48 rounded-2xl border-2 border-dashed border-primary/10 flex flex-col items-center justify-center overflow-hidden hover:border-primary/40 cursor-pointer transition-all"
-                              onClick={() => document.getElementById('social-image').click()}
-                           >
-                              {socialForm.image ? (
-                                 <img src={socialForm.image} alt="Preview" className="w-full h-full object-cover" />
-                              ) : (
-                                 <>
-                                    <span className="material-symbols-outlined text-3xl text-slate-300">add_photo_alternate</span>
-                                    <p className="text-[9px] font-black text-slate-400 mt-2 uppercase tracking-widest">Attach Media</p>
-                                 </>
-                              )}
-                              <input 
-                                 id="social-image" 
-                                 type="file" 
-                                 hidden 
-                                 accept="image/*" 
-                                 onChange={(e) => {
-                                    const file = e.target.files[0];
-                                    if (file) {
-                                       const reader = new FileReader();
-                                       reader.onloadend = () => setSocialForm(prev => ({ ...prev, image: reader.result }));
-                                       reader.readAsDataURL(file);
-                                    }
-                                 }} 
-                              />
-                           </div>
-                        </div>
+                          <div className="flex flex-col gap-4">
+                             <div className="relative group size-20 rounded-2xl border-2 border-dashed border-primary/10 flex items-center justify-center overflow-hidden hover:border-primary/40 cursor-pointer transition-all" onClick={() => document.getElementById('social-img').click()}>
+                                {socialForm.image ? (
+                                   <img src={socialForm.image} alt="Upload" className="w-full h-full object-cover" />
+                                ) : (
+                                   <span className="material-symbols-outlined text-slate-300">add_a_photo</span>
+                                )}
+                                <input id="social-img" type="file" hidden accept="image/*" onChange={handleSocialImageUpload} />
+                                <div className="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"><span className="material-symbols-outlined text-white">upload</span></div>
+                             </div>
 
-                        <button 
-                           type="submit"
-                           disabled={submitting}
-                           className="w-full py-4 bg-primary text-white font-bold rounded-2xl shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                        >
-                           {submitting ? (
-                              <div className="size-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
-                           ) : (
-                              <>
-                                 <span className="material-symbols-outlined text-sm">rocket_launch</span>
-                                 Synchronize Broadcast
-                              </>
-                           )}
-                        </button>
-                     </form>
-                  </div>
+                             <button 
+                                type="submit" 
+                                disabled={submitting || socialForm.platforms.length === 0}
+                                className="w-full py-4 bg-primary text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/30 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:grayscale"
+                             >
+                                {submitting ? 'Broadcasting...' : 'Ignite Sync'}
+                             </button>
+                          </div>
+                       </form>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col bg-slate-50 dark:bg-slate-900/40 rounded-2xl border border-primary/10 p-10 shadow-sm items-center justify-center text-center h-full sticky top-8">
+                      <span className="material-symbols-outlined text-4xl text-slate-300 mb-2">lock</span>
+                      <p className="text-slate-500 font-bold text-xs uppercase tracking-widest">You do not have permission to post to social media.</p>
+                    </div>
+                  )}
                 </>
               ) : activeSection === 'programs' ? (
                 <>
@@ -4564,6 +4663,174 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
                     </div>
                   </div>
                 </>
+               ) : activeSection === 'users' ? (
+                <>
+                  <div className="lg:col-span-3">
+                    <div className="bg-white dark:bg-slate-800/40 rounded-2xl border border-primary/10 shadow-sm overflow-hidden mb-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                       <div className="p-8 border-b border-primary/5 flex flex-wrap items-center justify-between gap-4 bg-gradient-to-r from-primary/5 to-transparent">
+                          <div>
+                            <h2 className="text-2xl font-bold flex items-center gap-2">
+                              <span className="material-symbols-outlined text-primary scale-125">manage_accounts</span>
+                              System Access Control
+                            </h2>
+                            <p className="text-sm text-slate-500 mt-1">Manage user accounts and specify sidebar access permissions.</p>
+                          </div>
+                          <button 
+                             onClick={() => {
+                               setIsEditingUser(false);
+                               setCurrentUserManagementId(null);
+                               setUserForm({ username: '', password: '', role: 'staff', permissions: {}, full_name: '', user_email: '', bio: '', profile_picture: '' });
+                             }}
+                             className="px-6 py-3 bg-primary text-white rounded-xl font-bold hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2 shadow-lg shadow-primary/20"
+                          >
+                             <span className="material-symbols-outlined text-sm">person_add</span>
+                             Create New User
+                          </button>
+                       </div>
+
+                       <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[600px]">
+                          {/* User List Sidebar */}
+                          <div className="lg:col-span-4 border-r border-primary/5 bg-slate-50/50 dark:bg-slate-900/20 max-h-[700px] overflow-y-auto custom-scrollbar">
+                             <div className="p-4 border-b border-primary/5 sticky top-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md z-10">
+                                <div className="relative">
+                                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
+                                  <input 
+                                     type="text" placeholder="Search users..."
+                                     value={userSearch} onChange={(e) => setUserSearch(e.target.value)}
+                                     className="w-full pl-10 pr-4 py-2.5 bg-slate-100 dark:bg-slate-800 border-none rounded-xl text-xs focus:ring-2 focus:ring-primary/20 transition-all"
+                                  />
+                                </div>
+                             </div>
+                             <div className="divide-y divide-primary/5">
+                                {systemUsers.filter(u => u.username.toLowerCase().includes(userSearch.toLowerCase()) || u.full_name?.toLowerCase().includes(userSearch.toLowerCase())).map(u => (
+                                   <button 
+                                      key={u.id}
+                                      onClick={() => {
+                                         setIsEditingUser(true);
+                                         setCurrentUserManagementId(u.id);
+                                         setUserForm({ ...u, password: '' });
+                                      }}
+                                      className={`w-full p-4 text-left flex items-center gap-3 transition-all hover:bg-white dark:hover:bg-slate-800 group ${currentUserManagementId === u.id ? 'bg-white dark:bg-slate-800 border-l-4 border-primary' : 'border-l-4 border-transparent'}`}
+                                   >
+                                      <div className="size-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary overflow-hidden shadow-inner font-bold">
+                                         {u.profile_picture ? <img src={u.profile_picture} className="w-full h-full object-cover" /> : u.username.substring(0, 2).toUpperCase()}
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                         <p className="text-sm font-bold truncate group-hover:text-primary transition-colors">{u.full_name || u.username}</p>
+                                         <div className="flex items-center gap-2 mt-0.5">
+                                           <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${u.role === 'superuser' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30' : 'bg-slate-100 text-slate-500 dark:bg-slate-800'}`}>
+                                             {u.role}
+                                           </span>
+                                           <span className="text-[10px] text-slate-400 truncate">@{u.username}</span>
+                                         </div>
+                                      </div>
+                                      <div onClick={(e) => { e.stopPropagation(); handleUserDelete(u.id); }} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all">
+                                         <span className="material-symbols-outlined text-sm">delete</span>
+                                      </div>
+                                   </button>
+                                ))}
+                             </div>
+                          </div>
+
+                          {/* Detail / Form Container */}
+                          <div className="lg:col-span-8 p-10 max-h-[700px] overflow-y-auto custom-scrollbar bg-white dark:bg-slate-900/40">
+                             <form onSubmit={handleUserSubmit} className="space-y-10">
+                                <section>
+                                  <div className="flex items-center gap-6 p-6 bg-primary/5 rounded-3xl border border-primary/10 mb-8">
+                                     <div className="relative group cursor-pointer size-28 rounded-3xl bg-white dark:bg-slate-900 border-2 border-dashed border-primary/30 overflow-hidden flex items-center justify-center shadow-lg transition-transform hover:scale-105">
+                                        {userForm.profile_picture ? <img src={userForm.profile_picture} className="w-full h-full object-cover" /> : <span className="material-symbols-outlined text-primary/40 text-4xl">add_a_photo</span>}
+                                        <div className="absolute inset-0 bg-primary/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><span className="material-symbols-outlined text-white">upload</span></div>
+                                        <input type="file" accept="image/*" onChange={handleUserImageUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                     </div>
+                                     <div>
+                                        <h4 className="text-xl font-bold">User Identity</h4>
+                                        <p className="text-sm text-slate-500">Provide personal and account details for this user.</p>
+                                     </div>
+                                  </div>
+
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 px-2">
+                                     <div className="space-y-2">
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Account Username</label>
+                                        <input type="text" required value={userForm.username} onChange={(e) => setUserForm(p => ({ ...p, username: e.target.value }))} className="w-full bg-slate-50 dark:bg-slate-800/50 border-none rounded-2xl px-5 py-4 text-sm focus:ring-2 focus:ring-primary/20 font-bold" placeholder="e.g. jdoe" />
+                                     </div>
+                                     <div className="space-y-2">
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">{isEditingUser ? 'New Password (Optional)' : 'Security Password'}</label>
+                                        <input type="password" required={!isEditingUser} value={userForm.password} onChange={(e) => setUserForm(p => ({ ...p, password: e.target.value }))} className="w-full bg-slate-50 dark:bg-slate-800/50 border-none rounded-2xl px-5 py-4 text-sm focus:ring-2 focus:ring-primary/20 font-bold" placeholder="••••••••" />
+                                     </div>
+                                     <div className="space-y-2">
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Official Full Name</label>
+                                        <input type="text" value={userForm.full_name} onChange={(e) => setUserForm(p => ({ ...p, full_name: e.target.value }))} className="w-full bg-slate-50 dark:bg-slate-800/50 border-none rounded-2xl px-5 py-4 text-sm focus:ring-2 focus:ring-primary/20 font-bold" placeholder="e.g. John Doe" />
+                                     </div>
+                                     <div className="space-y-2">
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">System Role</label>
+                                        <select value={userForm.role} onChange={(e) => setUserForm(p => ({ ...p, role: e.target.value }))} className="w-full bg-slate-50 dark:bg-slate-800/50 border-none rounded-2xl px-5 py-4 text-sm focus:ring-2 focus:ring-primary/20 font-black cursor-pointer">
+                                           <option value="staff">Station Staff</option>
+                                           <option value="manager">Station Manager</option>
+                                           <option value="superuser">Super Administrator</option>
+                                        </select>
+                                     </div>
+                                  </div>
+                                </section>
+
+                                <section className="pt-10 border-t border-primary/10">
+                                   <div className="flex items-center justify-between mb-8">
+                                      <div>
+                                         <h4 className="text-xl font-bold">Access Permissions</h4>
+                                         <p className="text-sm text-slate-500">Fine-tune exactly what parts of the system this user can interact with.</p>
+                                      </div>
+                                      {userForm.role === 'superuser' && (
+                                        <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 text-amber-500 text-[10px] font-black uppercase rounded-xl border border-amber-500/20 shadow-sm animate-pulse">
+                                          <span className="material-symbols-outlined text-sm">security</span>
+                                          Full Access Granted
+                                        </div>
+                                      )}
+                                   </div>
+
+                                   {userForm.role !== 'superuser' && (
+                                      <div className="bg-slate-50 dark:bg-slate-900 border border-primary/5 rounded-[2rem] overflow-hidden shadow-sm">
+                                         <div className="grid grid-cols-12 gap-2 p-5 bg-slate-100 dark:bg-slate-800/80 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                                            <div className="col-span-4 pl-2">System Section</div>
+                                            <div className="col-span-2 text-center">Read</div>
+                                            <div className="col-span-2 text-center">Create</div>
+                                            <div className="col-span-2 text-center">Update</div>
+                                            <div className="col-span-2 text-center">Delete</div>
+                                         </div>
+                                         <div className="divide-y divide-primary/5">
+                                            {sidebarSections.map(section => (
+                                               <div key={section.key} className="grid grid-cols-12 gap-2 p-5 items-center hover:bg-white dark:hover:bg-slate-800/50 transition-colors">
+                                                  <div className="col-span-4 flex items-center gap-3 pl-2">
+                                                     <div className="size-8 rounded-lg bg-primary/5 flex items-center justify-center">
+                                                       <span className="material-symbols-outlined text-sm text-primary/60">{navItems.find(n => n.key === section.key)?.icon}</span>
+                                                     </div>
+                                                     <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{section.label}</span>
+                                                  </div>
+                                                  {['read', 'create', 'update', 'delete'].map(action => (
+                                                     <div key={action} className="col-span-2 flex justify-center">
+                                                        <button 
+                                                           type="button"
+                                                           onClick={() => toggleUserPermission(section.key, action)}
+                                                           className={`size-7 rounded-xl flex items-center justify-center transition-all ${userForm.permissions[section.key]?.[action] ? 'bg-primary text-white shadow-lg shadow-primary/20 scale-110' : 'bg-slate-200 dark:bg-slate-700 text-transparent hover:bg-slate-300 dark:hover:bg-slate-600'}`}
+                                                        >
+                                                           <span className="material-symbols-outlined text-xs font-black">check</span>
+                                                        </button>
+                                                     </div>
+                                                  ))}
+                                               </div>
+                                            ))}
+                                         </div>
+                                      </div>
+                                   )}
+                                </section>
+
+                                <button type="submit" disabled={submitting} className="w-full py-5 bg-primary text-white font-black uppercase text-[11px] tracking-[0.2em] rounded-2xl shadow-2xl shadow-primary/30 hover:scale-[1.01] active:scale-[0.98] transition-all disabled:opacity-50 mt-4">
+                                   {submitting ? 'Authenticating System Changes...' : isEditingUser ? 'Commit User Profile Changes' : 'Initialize New Access Profile'}
+                                </button>
+                             </form>
+                          </div>
+                       </div>
+                    </div>
+                  </div>
+                </>
               ) : activeSection === 'settings' ? (
 
                 <>
@@ -4742,7 +5009,6 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
     </div>
   );
 };
-
 
 export default Dashboard;
 
