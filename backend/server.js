@@ -846,17 +846,17 @@ app.get('/api/staff/:id', authenticate, async (req, res) => {
 });
 
 app.post('/api/staff', authenticate, async (req, res) => {
-  const { full_name, role, email, phone, image, bio, status, joined_date } = req.body;
+  const { full_name, role, email, phone, image, bio, facebook, instagram, tiktok, status, joined_date } = req.body;
   if (!full_name || !role || !email) {
     return res.status(400).json({ error: 'Full name, role, and email are required' });
   }
   try {
     const result = await db.run(
-      'INSERT INTO staff (full_name, role, email, phone, image, bio, status, joined_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [full_name, role, email, phone, image, bio, status || 'Active', joined_date || new Date().toISOString().split('T')[0]]
+      'INSERT INTO staff (full_name, role, email, phone, image, bio, facebook, instagram, tiktok, status, joined_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [full_name, role, email, phone, image, bio, facebook, instagram, tiktok, status || 'Active', joined_date || new Date().toISOString().split('T')[0]]
     );
     await logAction(req.userId, 'CREATE_STAFF', `Created staff member: ${full_name}`, 'staff', result.lastID);
-    res.status(201).json({ id: result.lastID, full_name, role, email, phone, image, bio, status, joined_date });
+    res.status(201).json({ id: result.lastID, full_name, role, email, phone, image, bio, facebook, instagram, tiktok, status, joined_date });
   } catch (err) {
     console.error('POST /api/staff error', err);
     res.status(500).json({ error: 'Error creating staff member' });
@@ -865,14 +865,14 @@ app.post('/api/staff', authenticate, async (req, res) => {
 
 app.put('/api/staff/:id', authenticate, async (req, res) => {
   const { id } = req.params;
-  const { full_name, role, email, phone, image, bio, status, joined_date } = req.body;
+  const { full_name, role, email, phone, image, bio, facebook, instagram, tiktok, status, joined_date } = req.body;
   if (!full_name || !role || !email) {
     return res.status(400).json({ error: 'Full name, role, and email are required' });
   }
   try {
     const result = await db.run(
-      'UPDATE staff SET full_name = ?, role = ?, email = ?, phone = ?, image = ?, bio = ?, status = ?, joined_date = ? WHERE id = ?',
-      [full_name, role, email, phone, image, bio, status || 'Active', joined_date, id]
+      'UPDATE staff SET full_name = ?, role = ?, email = ?, phone = ?, image = ?, bio = ?, facebook = ?, instagram = ?, tiktok = ?, status = ?, joined_date = ? WHERE id = ?',
+      [full_name, role, email, phone, image, bio, facebook, instagram, tiktok, status || 'Active', joined_date, id]
     );
     if (result.changes === 0) return res.status(404).json({ error: 'Staff not found' });
     await logAction(req.userId, 'UPDATE_STAFF', `Updated staff member: ${full_name}`, 'staff', id);

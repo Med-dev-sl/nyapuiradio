@@ -64,7 +64,7 @@ async function initializeSchema() {
   await runSql(`CREATE TABLE IF NOT EXISTS partners (id ${idType}, name ${textType} NOT NULL, logo ${textType}, type ${textType}, contact_person ${textType}, email ${textType}, phone ${textType}, status ${textType} DEFAULT 'Active', agreement_date ${textType}, notes ${textType}, created_at ${timestampType});`);
   await runSql(`CREATE TABLE IF NOT EXISTS social_posts (id ${idType}, user_id INTEGER, content ${textType} NOT NULL, image ${textType}, platforms ${textType}, status ${textType} DEFAULT 'Posted', created_at ${timestampType} ${isPostgres ? ', CONSTRAINT fk_social_user FOREIGN KEY (user_id) REFERENCES users(id)' : ', FOREIGN KEY (user_id) REFERENCES users(id)'});`);
   await runSql(`CREATE TABLE IF NOT EXISTS programs (id ${idType}, title ${textType} NOT NULL, category ${textType} NOT NULL, description ${textType}, host ${textType}, days ${textType} NOT NULL, start_time ${textType} NOT NULL, end_time ${textType} NOT NULL, status ${textType} DEFAULT 'Active', image ${textType}, notes ${textType}, created_at ${timestampType});`);
-  await runSql(`CREATE TABLE IF NOT EXISTS staff (id ${idType}, full_name ${textType} NOT NULL, role ${textType} NOT NULL, email ${textType} UNIQUE NOT NULL, phone ${textType}, image ${textType}, bio ${textType}, status ${textType} DEFAULT 'Active', joined_date ${textType}, created_at ${timestampType});`);
+  await runSql(`CREATE TABLE IF NOT EXISTS staff (id ${idType}, full_name ${textType} NOT NULL, role ${textType} NOT NULL, email ${textType} UNIQUE NOT NULL, phone ${textType}, image ${textType}, bio ${textType}, facebook ${textType}, instagram ${textType}, tiktok ${textType}, status ${textType} DEFAULT 'Active', joined_date ${textType}, created_at ${timestampType});`);
   await runSql(`CREATE TABLE IF NOT EXISTS services (id ${idType}, name ${textType} NOT NULL, description ${textType}, image ${textType}, terms_conditions ${textType}, status ${textType} DEFAULT 'Active', created_at ${timestampType});`);
   await runSql(`CREATE TABLE IF NOT EXISTS service_bookings (id ${idType}, service_id INTEGER, customer_name ${textType} NOT NULL, customer_email ${textType} NOT NULL, customer_phone ${textType}, booking_date ${textType}, details ${textType}, status ${textType} DEFAULT 'Pending', created_at ${timestampType} ${isPostgres ? ', CONSTRAINT fk_service FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE' : ', FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE'});`);
 
@@ -86,6 +86,9 @@ async function initializeSchema() {
   await tryAddCol('users', 'bio', 'TEXT');
   await tryAddCol('users', 'profile_picture', 'TEXT');
   await tryAddCol('media', 'upload_date', 'TEXT');
+  await tryAddCol('staff', 'facebook', 'TEXT');
+  await tryAddCol('staff', 'instagram', 'TEXT');
+  await tryAddCol('staff', 'tiktok', 'TEXT');
 
   const defaultUser = process.env.SUPERUSER_NAME || 'admin';
   const defaultPassword = process.env.SUPERUSER_PASSWORD || 'Nyapui@123';

@@ -126,6 +126,9 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
     phone: '',
     image: '',
     bio: '',
+    facebook: '',
+    instagram: '',
+    tiktok: '',
     status: 'Active',
     joined_date: new Date().toISOString().split('T')[0]
   });
