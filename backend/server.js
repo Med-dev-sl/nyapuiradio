@@ -50,6 +50,16 @@ app.get('/', (req, res) => {
   res.json({ message: 'Backend is running' });
 });
 
+// Debug endpoint to check all users in database
+app.get('/api/debug/users', async (req, res) => {
+  try {
+    const users = await db.all('SELECT id, username, role, full_name FROM users');
+    res.json({ count: users.length, users });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch users', details: err.message });
+  }
+});
+
 app.post('/api/auth/login', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) {
@@ -57,15 +67,21 @@ app.post('/api/auth/login', async (req, res) => {
   }
 
   try {
+    console.log(`[LOGIN] Attempt with username: "${username}"`);
     const user = await db.get('SELECT id, username, password_hash, role, permissions, full_name, user_email, bio, profile_picture FROM users WHERE username = ?;', [username]);
     if (!user) {
+      console.log(`[LOGIN] User "${username}" not found in database`);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    console.log(`[LOGIN] User "${username}" found. Verifying password...`);
     const providedHash = hashPassword(password);
     if (providedHash !== user.password_hash) {
+      console.log(`[LOGIN] Password mismatch for user "${username}"`);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
+    
+    console.log(`[LOGIN] User "${username}" authenticated successfully`);
 
     const token = jwt.sign({ 
       id: user.id, 
