@@ -1,9 +1,11 @@
 import React from 'react';
 import Logo from '../common/Logo';
+import TopHeader from './TopHeader';
 
 const Home = () => {
   return (
     <div className="min-h-screen bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 flex flex-col">
+      <TopHeader />
       <header className="w-full py-6 shadow-sm border-b border-slate-200 dark:border-slate-800 px-8 flex justify-between items-center">
         <div className="flex items-center gap-3">
           <Logo className="size-10" />
