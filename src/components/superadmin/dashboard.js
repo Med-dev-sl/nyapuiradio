@@ -987,7 +987,7 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
           <div class="header">
             <div class="logo"></div>
             <div class="title-group">
-              <h1>NYAPUI RADIO 88.6FM</h1>
+              <h1>NYAPUI RADIO 106.1FM</h1>
               <p>Official Task Coordination Registry</p>
               <p>Generated on: ${new Date().toLocaleString()}</p>
             </div>
@@ -1110,7 +1110,7 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
           <div class="header">
             <div class="logo-placeholder"></div>
             <div class="title-group">
-              <h1>NYAPUI RADIO 88.6FM</h1>
+              <h1>NYAPUI RADIO 106.1FM</h1>
               <p>Official Strategic Partnership Report</p>
               <p>Generated on: ${new Date().toLocaleString()}</p>
             </div>
@@ -1176,7 +1176,7 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
           <div class="header">
             <div class="logo-placeholder"></div>
             <div class="station-info">
-              <h1>NYAPUI RADIO 88.6FM</h1>
+              <h1>NYAPUI RADIO 106.1FM</h1>
               <p>Institutional Performance & Analytics Report</p>
             </div>
           </div>
@@ -1381,7 +1381,7 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
           <div class="header">
             <div class="logo"></div>
             <div class="title-group">
-              <h1>NYAPUI RADIO 88.6FM</h1>
+              <h1>NYAPUI RADIO 106.1FM</h1>
               <p>Official Assets & Equipment Registry Report</p>
               <p>Generated on: ${new Date().toLocaleString()}</p>
             </div>
@@ -1453,7 +1453,7 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
           <div class="header">
             <div class="logo"></div>
             <div class="title-group">
-              <h1>NYAPUI RADIO 88.6FM</h1>
+              <h1>NYAPUI RADIO 106.1FM</h1>
               <p>Official Donors & Contributions Report</p>
               <p>Generated on: ${new Date().toLocaleString()}</p>
             </div>
