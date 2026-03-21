@@ -905,46 +905,6 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
     });
   };
 
-  const handleDonorSubmit = async (e) => {
-    e.preventDefault();
-    if (!donorForm.name.trim() || !donorForm.amount) {
-      showError('Please provide a name and donation amount.');
-      return;
-    }
-    setSubmitting(true);
-
-    try {
-      const url = isEditingDonor ? `${API_URL}/api/donors/${currentDonorId}` : `${API_URL}/api/donors`;
-      const method = isEditingDonor ? 'PUT' : 'POST';
-      
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(donorForm),
-      });
-
-      if (response.status === 401) {
-        onLogout?.();
-        return;
-      }
-
-      if (!response.ok) throw new Error(`Could not ${isEditingDonor ? 'update' : 'add'} donor (HTTP ${response.status})`);
-      
-      setDonorForm({ name: '', email: '', amount: '' });
-      setIsEditingDonor(false);
-      setCurrentDonorId(null);
-      showSuccess(isEditingDonor ? `Donor details for ${donorForm.name} have been updated.` : `Thank you! ${donorForm.name}'s contribution has been recorded.`, isEditingDonor ? 'Donor Updated' : 'Contribution Recorded');
-      await fetchDonors();
-    } catch (err) {
-      showError(err.message || 'An error occurred while saving the donation.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   const handleTaskSubmit = async (e) => {
     e.preventDefault();
     if (!taskForm.title.trim() || !taskForm.category) {
@@ -4713,7 +4673,7 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
                                       className={`w-full p-4 text-left flex items-center gap-3 transition-all hover:bg-white dark:hover:bg-slate-800 group ${currentUserManagementId === u.id ? 'bg-white dark:bg-slate-800 border-l-4 border-primary' : 'border-l-4 border-transparent'}`}
                                    >
                                       <div className="size-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary overflow-hidden shadow-inner font-bold">
-                                         {u.profile_picture ? <img src={u.profile_picture} alt="User profile picture" className="w-full h-full object-cover" /> : u.username.substring(0, 2).toUpperCase()}
+                                         {u.profile_picture ? <img src={u.profile_picture} alt="User profile" className="w-full h-full object-cover" /> : u.username.substring(0, 2).toUpperCase()}
                                       </div>
                                       <div className="flex-1 min-w-0">
                                          <p className="text-sm font-bold truncate group-hover:text-primary transition-colors">{u.full_name || u.username}</p>
@@ -4738,7 +4698,7 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
                                 <section>
                                   <div className="flex items-center gap-6 p-6 bg-primary/5 rounded-3xl border border-primary/10 mb-8">
                                      <div className="relative group cursor-pointer size-28 rounded-3xl bg-white dark:bg-slate-900 border-2 border-dashed border-primary/30 overflow-hidden flex items-center justify-center shadow-lg transition-transform hover:scale-105">
-                                        {userForm.profile_picture ? <img src={userForm.profile_picture} alt="User profile picture" className="w-full h-full object-cover" /> : <span className="material-symbols-outlined text-primary/40 text-4xl">add_a_photo</span>}
+                                        {userForm.profile_picture ? <img src={userForm.profile_picture} alt="User profile" className="w-full h-full object-cover" /> : <span className="material-symbols-outlined text-primary/40 text-4xl">add_a_photo</span>}
                                         <div className="absolute inset-0 bg-primary/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><span className="material-symbols-outlined text-white">upload</span></div>
                                         <input type="file" accept="image/*" onChange={handleUserImageUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
                                      </div>
