@@ -8,7 +8,7 @@ const TopHeader = () => {
         <div className="hidden md:flex justify-between items-center gap-8">
           {/* Left - Address */}
           <div className="flex items-start gap-3 flex-1">
-            <div className="text-2xl shrink-0">📍</div>
+            <i className="material-symbols-outlined text-orange-500 text-2xl shrink-0" style={{fontSize: '28px', fontWeight: 'normal', fontStyle: 'normal', letterSpacing: 'normal', textTransform: 'none', whiteSpace: 'nowrap', wordWrap: 'normal', direction: 'ltr'}}>location_on</i>
             <div className="flex flex-col">
               <p className="text-xs font-black uppercase tracking-widest text-orange-400">Address</p>
               <p className="text-sm font-bold text-white">4 Amie Jay Drive</p>
@@ -18,7 +18,7 @@ const TopHeader = () => {
 
           {/* Center - Email */}
           <div className="flex items-start gap-3 flex-1 justify-center">
-            <div className="text-2xl shrink-0">✉️</div>
+            <i className="material-symbols-outlined text-orange-500 text-2xl shrink-0" style={{fontSize: '28px', fontWeight: 'normal', fontStyle: 'normal', letterSpacing: 'normal', textTransform: 'none', whiteSpace: 'nowrap', wordWrap: 'normal', direction: 'ltr'}}>mail</i>
             <div className="flex flex-col text-center">
               <p className="text-xs font-black uppercase tracking-widest text-orange-400">Email</p>
               <a 
@@ -32,7 +32,7 @@ const TopHeader = () => {
 
           {/* Right - Contact */}
           <div className="flex items-start gap-3 flex-1 justify-end">
-            <div className="text-2xl shrink-0">📱</div>
+            <i className="material-symbols-outlined text-orange-500 text-2xl shrink-0" style={{fontSize: '28px', fontWeight: 'normal', fontStyle: 'normal', letterSpacing: 'normal', textTransform: 'none', whiteSpace: 'nowrap', wordWrap: 'normal', direction: 'ltr'}}>phone</i>
             <div className="flex flex-col text-right">
               <p className="text-xs font-black uppercase tracking-widest text-orange-400">Contact</p>
               <a 
@@ -49,7 +49,7 @@ const TopHeader = () => {
         <div className="md:hidden space-y-4">
           {/* Address */}
           <div className="flex items-start gap-3">
-            <div className="text-xl shrink-0">📍</div>
+            <i className="material-symbols-outlined text-orange-500 text-xl shrink-0" style={{fontSize: '24px', fontWeight: 'normal', fontStyle: 'normal', letterSpacing: 'normal', textTransform: 'none', whiteSpace: 'nowrap', wordWrap: 'normal', direction: 'ltr'}}>location_on</i>
             <div className="flex flex-col">
               <p className="text-xs font-black uppercase tracking-widest text-orange-400">Address</p>
               <p className="text-xs font-bold text-white">4 Amie Jay Drive, Reservation Kenema</p>
@@ -58,7 +58,7 @@ const TopHeader = () => {
 
           {/* Email */}
           <div className="flex items-start gap-3">
-            <div className="text-xl shrink-0">✉️</div>
+            <i className="material-symbols-outlined text-orange-500 text-xl shrink-0" style={{fontSize: '24px', fontWeight: 'normal', fontStyle: 'normal', letterSpacing: 'normal', textTransform: 'none', whiteSpace: 'nowrap', wordWrap: 'normal', direction: 'ltr'}}>mail</i>
             <div className="flex flex-col">
               <p className="text-xs font-black uppercase tracking-widest text-orange-400">Email</p>
               <a 
@@ -72,7 +72,7 @@ const TopHeader = () => {
 
           {/* Contact */}
           <div className="flex items-start gap-3">
-            <div className="text-xl shrink-0">📱</div>
+            <i className="material-symbols-outlined text-orange-500 text-xl shrink-0" style={{fontSize: '24px', fontWeight: 'normal', fontStyle: 'normal', letterSpacing: 'normal', textTransform: 'none', whiteSpace: 'nowrap', wordWrap: 'normal', direction: 'ltr'}}>phone</i>
             <div className="flex flex-col">
               <p className="text-xs font-black uppercase tracking-widest text-orange-400">Contact</p>
               <a 
