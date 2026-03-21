@@ -2120,22 +2120,151 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
                 </>
               ) : activeSection === 'dashboard' || activeSection === 'broadcasts' || activeSection === 'inventory' ? (
                 <>
-                  <div className="lg:col-span-3 py-16 flex flex-col items-center justify-center bg-white dark:bg-slate-800/40 rounded-2xl border border-primary/10 shadow-sm text-center">
-                    <div className="size-20 bg-primary/10 rounded-full flex items-center justify-center text-primary mb-6">
-                      <span className="material-symbols-outlined text-4xl">analytics</span>
-                    </div>
-                    <h2 className="text-2xl font-bold mb-2">Platform Overview</h2>
-                    <p className="text-slate-500 max-w-sm mb-6">
-                      Detailed system reports and live metrics are being synchronized. You have {assetStats.total} assets registered.
-                    </p>
-                    <div className="flex gap-4">
-                      <div className="px-4 py-2 bg-emerald-500/10 text-emerald-600 rounded-lg text-xs font-bold uppercase transition-all">
-                        {assetStats.operational} Operational
+                  {/* Dashboard Overview Statistics */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {/* Financial Footprint */}
+                    <div className="bg-white dark:bg-slate-800/40 rounded-2xl border border-primary/10 p-6 shadow-sm">
+                      <div className="flex items-start justify-between mb-4">
+                        <div>
+                          <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Financial Footprint</p>
+                          <h3 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white mt-2">
+                            SLe {analyticsSummary.donors?.totalAmount?.toLocaleString() || 0}
+                          </h3>
+                        </div>
+                        <div className="size-12 bg-emerald-500/10 rounded-xl flex items-center justify-center">
+                          <span className="material-symbols-outlined text-emerald-600 text-xl">account_balance_wallet</span>
+                        </div>
                       </div>
-                      <div className="px-4 py-2 bg-amber-500/10 text-amber-600 rounded-lg text-xs font-bold uppercase transition-all">
-                        {assetStats.maintenance} Maintenance
-                      </div>
+                      <p className="text-xs text-slate-600 dark:text-slate-400">
+                        {analyticsSummary.donors?.totalCount || 0} recorded donations
+                      </p>
                     </div>
+
+                    {/* Asset Valuation */}
+                    <div className="bg-white dark:bg-slate-800/40 rounded-2xl border border-primary/10 p-6 shadow-sm">
+                      <div className="flex items-start justify-between mb-4">
+                        <div>
+                          <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Asset Valuation</p>
+                          <h3 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white mt-2">
+                            SLe {analyticsSummary.assets?.totalValue?.toLocaleString() || 0}
+                          </h3>
+                        </div>
+                        <div className="size-12 bg-blue-500/10 rounded-xl flex items-center justify-center">
+                          <span className="material-symbols-outlined text-blue-600 text-xl">inventory_2</span>
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-600 dark:text-slate-400">
+                        {analyticsSummary.assets?.operationalCount || 0} / {analyticsSummary.assets?.totalCount || 0} operational
+                      </p>
+                    </div>
+
+                    {/* Institutional Partnerships */}
+                    <div className="bg-white dark:bg-slate-800/40 rounded-2xl border border-primary/10 p-6 shadow-sm">
+                      <div className="flex items-start justify-between mb-4">
+                        <div>
+                          <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Partnerships</p>
+                          <h3 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white mt-2">
+                            {analyticsSummary.partners?.total || 0}
+                          </h3>
+                        </div>
+                        <div className="size-12 bg-purple-500/10 rounded-xl flex items-center justify-center">
+                          <span className="material-symbols-outlined text-purple-600 text-xl">groups</span>
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-600 dark:text-slate-400">
+                        Active institutional partners
+                      </p>
+                    </div>
+
+                    {/* Operational Efficiency */}
+                    <div className="bg-white dark:bg-slate-800/40 rounded-2xl border border-primary/10 p-6 shadow-sm">
+                      <div className="flex items-start justify-between mb-4">
+                        <div>
+                          <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Task Completion</p>
+                          <h3 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white mt-2">
+                            {analyticsSummary.tasks?.completionRate || 0}%
+                          </h3>
+                        </div>
+                        <div className="size-12 bg-amber-500/10 rounded-xl flex items-center justify-center">
+                          <span className="material-symbols-outlined text-amber-600 text-xl">task_alt</span>
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-600 dark:text-slate-400">
+                        {analyticsSummary.tasks?.completed || 0} of {analyticsSummary.tasks?.total || 0} completed
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Additional Dashboard Metrics */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+                    {/* Media Content */}
+                    <div className="bg-white dark:bg-slate-800/40 rounded-2xl border border-primary/10 p-6 shadow-sm">
+                      <div className="flex items-start justify-between mb-4">
+                        <div>
+                          <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Media Files</p>
+                          <h3 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white mt-2">
+                            {analyticsSummary.media?.totalFiles || 0}
+                          </h3>
+                        </div>
+                        <div className="size-12 bg-pink-500/10 rounded-xl flex items-center justify-center">
+                          <span className="material-symbols-outlined text-pink-600 text-xl">library_music</span>
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-600 dark:text-slate-400">
+                        Managed media content
+                      </p>
+                    </div>
+
+                    {/* System Users */}
+                    <div className="bg-white dark:bg-slate-800/40 rounded-2xl border border-primary/10 p-6 shadow-sm">
+                      <div className="flex items-start justify-between mb-4">
+                        <div>
+                          <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">System Users</p>
+                          <h3 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white mt-2">
+                            {systemUsers.length}
+                          </h3>
+                        </div>
+                        <div className="size-12 bg-indigo-500/10 rounded-xl flex items-center justify-center">
+                          <span className="material-symbols-outlined text-indigo-600 text-xl">people</span>
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-600 dark:text-slate-400">
+                        Active system accounts
+                      </p>
+                    </div>
+
+                    {/* System Status */}
+                    <div className="bg-white dark:bg-slate-800/40 rounded-2xl border border-primary/10 p-6 shadow-sm">
+                      <div className="flex items-start justify-between mb-4">
+                        <div>
+                          <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">System Status</p>
+                          <div className="flex items-center gap-2 mt-2">
+                            <span className="relative flex h-3 w-3">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-600" />
+                            </span>
+                            <h3 className="text-lg font-black text-slate-900 dark:text-white">Operational</h3>
+                          </div>
+                        </div>
+                        <div className="size-12 bg-emerald-500/10 rounded-xl flex items-center justify-center">
+                          <span className="material-symbols-outlined text-emerald-600 text-xl">check_circle</span>
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-600 dark:text-slate-400">
+                        All systems functioning normally
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Export Statistics Button */}
+                  <div className="mt-8 flex justify-center">
+                    <button
+                      onClick={exportOverallStats}
+                      className="px-8 py-3 bg-primary text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-3"
+                    >
+                      <span className="material-symbols-outlined text-sm">download</span>
+                      Export Full Report
+                    </button>
                   </div>
                 </>
               ) : activeSection === 'services' ? (
