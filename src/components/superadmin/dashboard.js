@@ -75,6 +75,8 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
   });
 
   const [donorForm, setDonorForm] = useState({ name: '', email: '', amount: '' });
+  const [isEditingDonor, setIsEditingDonor] = useState(false);
+  const [currentDonorId, setCurrentDonorId] = useState(null);
   const [assetForm, setAssetForm] = useState({
     name: '',
     category: 'Electronics',
@@ -111,8 +113,6 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
   const [auditLogs, setAuditLogs] = useState([]);
   const [mediaStats, setMediaStats] = useState({ image: {count:0}, video: {count:0}, audio: {count:0}, document: {count:0} });
   const [mediaUploadDate, setMediaUploadDate] = useState(new Date().toISOString().split('T')[0]);
-  const [isEditingDonor, setIsEditingDonor] = useState(false);
-  const [currentDonorId, setCurrentDonorId] = useState(null);
   const [donorSearch, setDonorSearch] = useState('');
   const [donorSortBy, setDonorSortBy] = useState('date'); // 'date' or 'amount'
   const [donorFilter, setDonorFilter] = useState('All'); // 'All', 'Recent', 'Large'
