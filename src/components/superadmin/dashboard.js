@@ -74,9 +74,6 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
     onClose: () => {}
   });
 
-  const [donorForm, setDonorForm] = useState({ name: '', email: '', amount: '' });
-  const [isEditingDonor, setIsEditingDonor] = useState(false);
-  const [currentDonorId, setCurrentDonorId] = useState(null);
   const [assetForm, setAssetForm] = useState({
     name: '',
     category: 'Electronics',
@@ -3894,9 +3891,7 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
                                     {canPerform('donors', 'update') && (
                                       <button 
                                         onClick={() => {
-                                          setIsEditingDonor(true);
-                                          setCurrentDonorId(d.id);
-                                          setDonorForm({ name: d.name, email: d.email || '', amount: d.amount });
+                                          // Edit donor functionality would go here
                                         }}
                                         className="p-1.5 text-primary hover:bg-primary/10 rounded-lg transition-colors"
                                         title="Edit Record"
