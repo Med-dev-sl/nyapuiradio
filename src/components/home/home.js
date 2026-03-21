@@ -9,12 +9,6 @@ const Home = () => {
           <Logo className="size-10" />
           <h1 className="text-3xl font-bold">Nyapui Radio</h1>
         </div>
-        <button
-          onClick={() => { window.location.href = '/superadmin'; }}
-          className="px-6 py-2 bg-primary text-white font-bold rounded-lg"
-        >
-          Superadmin Login
-        </button>
       </header>
 
       <main className="flex-1 p-8 flex flex-col items-center justify-center gap-8">
@@ -39,7 +33,7 @@ const Home = () => {
         </div>
 
         <div className="w-full max-w-2xl text-center text-sm text-slate-600 dark:text-slate-400">
-          <p>For administration, click the Superadmin Login button above. For public content, continue as a listener through the mobile or web app experience.</p>
+          <p>Explore our content through the mobile or web app experience. Enjoy local and international news, podcasts, and programs.</p>
         </div>
       </main>
 
