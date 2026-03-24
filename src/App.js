@@ -6,6 +6,7 @@ import Loading from './components/superadmin/loading';
 import Modal from './components/common/Modal';
 import Home from './components/home/home';
 import Logo from './components/common/Logo';
+import FABubble from './components/common/FABubble';
 import API_URL from './config';
 
 function App() {
@@ -197,6 +198,7 @@ function App() {
       ) : (
         <Login onLogin={handleLogin} />
       )}
+      <FABubble />
     </>
   );
 }
