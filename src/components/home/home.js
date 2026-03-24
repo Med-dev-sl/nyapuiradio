@@ -1,5 +1,6 @@
 import React from 'react';
 import CenteredLogo from '../common/CenteredLogo';
+import HeaderMenu from './HeaderMenu';
 
 const Home = () => {
   return (
@@ -7,6 +8,7 @@ const Home = () => {
       <header className="w-full py-12 shadow-sm border-b border-slate-200 dark:border-slate-800 px-8 flex justify-center items-center">
         <CenteredLogo className="size-40" />
       </header>
+      <HeaderMenu />
 
       <main className="flex-1 p-8 flex flex-col items-center justify-center gap-8">
         <div className="max-w-4xl text-center">
