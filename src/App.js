@@ -182,7 +182,12 @@ function App() {
   const isSuperadminRoute = window.location.pathname.startsWith('/superadmin');
 
   if (!isSuperadminRoute) {
-    return <Home />;
+    return (
+      <>
+        <Home />
+        <FABubble />
+      </>
+    );
   }
 
   if (isLoading) return <Loading />;
