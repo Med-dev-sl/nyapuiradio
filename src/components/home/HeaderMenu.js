@@ -45,16 +45,16 @@ const HeaderMenu = () => {
                   <ul className="absolute left-0 top-full z-10 hidden mt-2 w-40 rounded-lg border border-slate-200 bg-white py-2 shadow-lg group-hover:block dark:border-slate-700 dark:bg-slate-900">
                     {newsSubItems.map((sub) => (
                       <li key={sub}>
-                        <a
-                          href="#"
+                        <button
+                          type="button"
                           onClick={() => {
                             setActive('News');
                             if (mobileOpen) setMobileOpen(false);
                           }}
-                          className="block px-3 py-2 text-sm text-slate-700 transition-colors hover:bg-orange-50 hover:text-orange-500 dark:text-slate-200 dark:hover:bg-orange-900/20"
+                          className="w-full text-left px-3 py-2 text-sm text-slate-700 transition-colors hover:bg-orange-50 hover:text-orange-500 dark:text-slate-200 dark:hover:bg-orange-900/20"
                         >
                           {sub}
-                        </a>
+                        </button>
                       </li>
                     ))}
                   </ul>
