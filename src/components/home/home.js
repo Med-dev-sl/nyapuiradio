@@ -1,16 +1,11 @@
 import React from 'react';
-import Logo from '../common/Logo';
-import TopHeader from './TopHeader';
+import CenteredLogo from '../common/CenteredLogo';
 
 const Home = () => {
   return (
     <div className="min-h-screen bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 flex flex-col">
-      <TopHeader />
-      <header className="w-full py-6 shadow-sm border-b border-slate-200 dark:border-slate-800 px-8 flex justify-between items-center">
-        <div className="flex items-center gap-3">
-          <Logo className="size-10" />
-          <h1 className="text-3xl font-bold">Nyapui Radio</h1>
-        </div>
+      <header className="w-full py-6 shadow-sm border-b border-slate-200 dark:border-slate-800 px-8 flex justify-center items-center">
+        <CenteredLogo className="size-24" />
       </header>
 
       <main className="flex-1 p-8 flex flex-col items-center justify-center gap-8">
