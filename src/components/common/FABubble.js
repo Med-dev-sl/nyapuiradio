@@ -32,15 +32,13 @@ const FABubble = () => {
         onClick={toggleTheme}
         className={`relative size-14 rounded-full flex items-center justify-center shadow-2xl transition-all duration-500 hover:scale-110 active:scale-95 overflow-hidden border-2 ${
           isDark 
-            ? 'bg-slate-900 border-slate-700 text-amber-400' 
-            : 'bg-white border-slate-100 text-blue-600'
+            ? 'bg-slate-900 border-slate-700 text-primary' 
+            : 'bg-white border-slate-100 text-primary'
         }`}
         aria-label="Toggle Theme"
       >
         {/* Animated Background Glow */}
-        <div className={`absolute inset-0 opacity-20 blur-xl transition-colors duration-500 ${
-          isDark ? 'bg-amber-400' : 'bg-blue-600'
-        }`} />
+        <div className={`absolute inset-0 opacity-20 blur-xl transition-colors duration-500 bg-primary`} />
         
         {/* Animated Icons Container */}
         <div className={`relative transition-all duration-500 transform ${isDark ? 'rotate-[360deg]' : 'rotate-0'}`}>
@@ -57,9 +55,7 @@ const FABubble = () => {
       </button>
 
       {/* Decorative pulse ring */}
-      <div className={`absolute bottom-0 right-0 size-14 rounded-full border-2 animate-ping opacity-20 pointer-events-none ${
-        isDark ? 'border-amber-400' : 'border-blue-600'
-      }`} style={{ animationDuration: '3s' }} />
+      <div className={`absolute bottom-0 right-0 size-14 rounded-full border-2 animate-ping opacity-20 pointer-events-none border-primary`} style={{ animationDuration: '3s' }} />
     </div>
   );
 };
