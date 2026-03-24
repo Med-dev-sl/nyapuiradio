@@ -38,7 +38,7 @@ const HeaderMenu = () => {
             const activeClass = isActive ? 'text-orange-500' : 'hover:text-orange-500';
 
             return (
-              <li key={item} className="relative">
+              <li key={item} className="relative group">
                 <button
                   type="button"
                   onClick={() => handleItemClick(item)}
@@ -47,9 +47,17 @@ const HeaderMenu = () => {
                   aria-expanded={item === 'News' ? newsOpen : undefined}
                 >
                   {item}
-                  <span className="inline-block ml-1 transition-opacity duration-150 opacity-0 group-hover:opacity-100">→</span>
+                  <span 
+                    className={`material-symbols-outlined text-[10px] ml-1.5 align-middle transition-all duration-300 inline-block ${
+                      isActive 
+                        ? 'opacity-100 translate-x-0' 
+                        : 'opacity-0 -translate-x-3 group-hover:opacity-100 group-hover:translate-x-0'
+                    }`}
+                  >
+                    arrow_forward
+                  </span>
                   <span
-                    className={`absolute left-0 -bottom-1 h-[2px] bg-orange-500 transition-all duration-250 ${isActive ? 'w-full' : 'w-0 group-hover:w-full'}`}
+                    className={`absolute left-0 -bottom-1 h-[2px] bg-orange-500 transition-all duration-300 ${isActive ? 'w-full' : 'w-0 group-hover:w-full'}`}
                   />
                 </button>
               </li>
