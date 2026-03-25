@@ -50,13 +50,16 @@ const About = () => {
           </div>
 
           {/* Shooting Arrow Style element */}
-          <div className={`absolute -right-12 top-1/2 -translate-y-1/2 z-10 transition-all duration-1000 delay-500 transform ${isVisible ? 'translate-x-0 opacity-100' : '-translate-x-full opacity-0'}`}>
+          <div className={`absolute z-10 transition-all duration-1000 delay-500 transform 
+            ${isVisible ? 'translate-x-0 translate-y-0 opacity-100' : '-translate-x-full opacity-0 md:-translate-x-full'} 
+            bottom-[-2rem] left-1/2 -translate-x-1/2 rotate-90
+            md:bottom-auto md:left-auto md:top-1/2 md:-right-12 md:-translate-y-1/2 md:rotate-0`}>
              <div className="flex items-center">
                 <div className="size-16 bg-primary rounded-full flex items-center justify-center shadow-xl shadow-primary/30 border-4 border-white dark:border-slate-900">
                    <span className="material-symbols-outlined text-white text-3xl font-bold animate-ping absolute opacity-50">arrow_forward</span>
                    <span className="material-symbols-outlined text-white text-3xl font-bold">arrow_forward</span>
                 </div>
-                <div className="h-1 w-24 bg-gradient-to-r from-primary to-transparent rounded-full -ml-1" />
+                <div className="hidden md:block h-1 w-24 bg-gradient-to-r from-primary to-transparent rounded-full -ml-1" />
              </div>
           </div>
         </div>
