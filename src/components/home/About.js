@@ -1,4 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
+import KnowMore from './KnowMore';
+
 
 const About = () => {
   const [isVisible, setIsVisible] = useState(false);
@@ -64,6 +66,7 @@ const About = () => {
           </div>
         </div>
 
+        {/* Text on the Right */}
         <div className="flex-1 space-y-8">
           <div className={`transition-all duration-1000 delay-300 transform ${isVisible ? 'translate-x-0 opacity-100' : '-translate-x-20 opacity-0'}`}>
             <h4 className="text-primary font-black uppercase tracking-[0.3em] text-sm mb-4">Our Journey</h4>
@@ -103,6 +106,11 @@ const About = () => {
                   </div>
                </div>
             </div>
+          </div>
+
+          {/* New CTA Button Section */}
+          <div className={`pt-8 transition-all duration-1000 delay-[900ms] transform ${isVisible ? 'translate-x-0 opacity-100' : '-translate-x-20 opacity-0'}`}>
+            <KnowMore />
           </div>
         </div>
 
