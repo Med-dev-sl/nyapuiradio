@@ -74,7 +74,7 @@ const Home = () => {
         <HeaderMenu />
         <Hero />
 
-        <main className="flex-1 p-8 flex flex-col items-center justify-center gap-12 relative">
+        <main className="flex-1 w-full p-8 flex flex-col items-center justify-start gap-24 relative">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-6xl">
             {/* Local News Card */}
             <div className="p-10 bg-white dark:bg-slate-900/50 backdrop-blur-md border border-slate-200 dark:border-primary/20 rounded-[2.5rem] shadow-sm hover:shadow-2xl hover:shadow-primary/20 transition-all duration-500 group overflow-hidden relative cursor-pointer">
