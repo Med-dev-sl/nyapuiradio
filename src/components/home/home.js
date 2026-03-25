@@ -74,20 +74,52 @@ const Home = () => {
 
         <main className="flex-1 p-8 flex flex-col items-center justify-center gap-12 relative">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-6xl">
-            <div className="p-8 bg-white dark:bg-slate-900/50 backdrop-blur-sm border border-slate-200 dark:border-primary/20 rounded-[2rem] shadow-sm hover:shadow-xl hover:shadow-primary/5 transition-all group overflow-hidden relative">
-              <div className="absolute top-0 right-0 size-24 bg-primary/5 dark:bg-primary/10 rounded-full blur-2xl -mr-8 -mt-8 group-hover:bg-primary/20 transition-all" />
-              <h3 className="text-2xl font-bold mb-3 text-slate-900 dark:text-white">Local News</h3>
-              <p className="text-slate-500 dark:text-slate-400 leading-relaxed">In-depth community coverage with trending local headlines that matter to you.</p>
+            {/* Local News Card */}
+            <div className="p-10 bg-white dark:bg-slate-900/50 backdrop-blur-md border border-slate-200 dark:border-primary/20 rounded-[2.5rem] shadow-sm hover:shadow-2xl hover:shadow-primary/20 transition-all duration-500 group overflow-hidden relative cursor-pointer">
+              <div className="absolute top-0 right-0 size-32 bg-primary/10 rounded-full blur-3xl -mr-12 -mt-12 group-hover:bg-primary/30 transition-all duration-700" />
+              
+              <div className="size-16 bg-primary/10 rounded-2xl flex items-center justify-center mb-8 group-hover:scale-110 group-hover:rotate-12 transition-all duration-500">
+                <span className="material-symbols-outlined text-primary text-4xl font-bold">newspaper</span>
+              </div>
+              
+              <h3 className="text-2xl font-black mb-4 text-slate-900 dark:text-white group-hover:text-primary transition-colors">Local News</h3>
+              <p className="text-slate-500 dark:text-slate-400 leading-relaxed font-medium">In-depth community coverage with trending local headlines that matter to you.</p>
+              
+              <div className="mt-8 flex items-center text-primary font-black text-sm uppercase tracking-widest opacity-0 group-hover:opacity-100 translate-x-[-10px] group-hover:translate-x-0 transition-all duration-500">
+                Explore More <span className="material-symbols-outlined ml-2 text-base">arrow_forward</span>
+              </div>
             </div>
-            <div className="p-8 bg-white dark:bg-slate-900/50 backdrop-blur-sm border border-slate-200 dark:border-primary/20 rounded-[2rem] shadow-sm hover:shadow-xl hover:shadow-primary/5 transition-all group overflow-hidden relative">
-              <div className="absolute top-0 right-0 size-24 bg-primary/5 dark:bg-primary/10 rounded-full blur-2xl -mr-8 -mt-8 group-hover:bg-primary/20 transition-all" />
-              <h3 className="text-2xl font-bold mb-3 text-slate-900 dark:text-white">International</h3>
-              <p className="text-slate-500 dark:text-slate-400 leading-relaxed">Global headlines from trusted partners, delivered in real time for a global perspective.</p>
+
+            {/* International Card */}
+            <div className="p-10 bg-white dark:bg-slate-900/50 backdrop-blur-md border border-slate-200 dark:border-primary/20 rounded-[2.5rem] shadow-sm hover:shadow-2xl hover:shadow-primary/20 transition-all duration-500 group overflow-hidden relative cursor-pointer">
+              <div className="absolute top-0 right-0 size-32 bg-primary/10 rounded-full blur-3xl -mr-12 -mt-12 group-hover:bg-primary/30 transition-all duration-700" />
+              
+              <div className="size-16 bg-primary/10 rounded-2xl flex items-center justify-center mb-8 group-hover:scale-110 group-hover:rotate-[-12deg] transition-all duration-500">
+                <span className="material-symbols-outlined text-primary text-4xl font-bold">public</span>
+              </div>
+              
+              <h3 className="text-2xl font-black mb-4 text-slate-900 dark:text-white group-hover:text-primary transition-colors">International</h3>
+              <p className="text-slate-500 dark:text-slate-400 leading-relaxed font-medium">Global headlines from trusted partners, delivered in real time for a global perspective.</p>
+              
+              <div className="mt-8 flex items-center text-primary font-black text-sm uppercase tracking-widest opacity-0 group-hover:opacity-100 translate-x-[-10px] group-hover:translate-x-0 transition-all duration-500">
+                Explore More <span className="material-symbols-outlined ml-2 text-base">arrow_forward</span>
+              </div>
             </div>
-            <div className="p-8 bg-white dark:bg-slate-900/50 backdrop-blur-sm border border-slate-200 dark:border-primary/20 rounded-[2rem] shadow-sm hover:shadow-xl hover:shadow-primary/5 transition-all group overflow-hidden relative">
-              <div className="absolute top-0 right-0 size-24 bg-primary/5 dark:bg-primary/10 rounded-full blur-2xl -mr-8 -mt-8 group-hover:bg-primary/20 transition-all" />
-              <h3 className="text-2xl font-bold mb-3 text-slate-900 dark:text-white">Podcasts</h3>
-              <p className="text-slate-500 dark:text-slate-400 leading-relaxed">Explore shows, podcasts, and video content from the station's rich and diverse lineup.</p>
+
+            {/* Podcasts Card */}
+            <div className="p-10 bg-white dark:bg-slate-900/50 backdrop-blur-md border border-slate-200 dark:border-primary/20 rounded-[2.5rem] shadow-sm hover:shadow-2xl hover:shadow-primary/20 transition-all duration-500 group overflow-hidden relative cursor-pointer">
+              <div className="absolute top-0 right-0 size-32 bg-primary/10 rounded-full blur-3xl -mr-12 -mt-12 group-hover:bg-primary/30 transition-all duration-700" />
+              
+              <div className="size-16 bg-primary/10 rounded-2xl flex items-center justify-center mb-8 group-hover:scale-110 group-hover:rotate-12 transition-all duration-500">
+                <span className="material-symbols-outlined text-primary text-4xl font-bold">mic</span>
+              </div>
+              
+              <h3 className="text-2xl font-black mb-4 text-slate-900 dark:text-white group-hover:text-primary transition-colors">Podcasts</h3>
+              <p className="text-slate-500 dark:text-slate-400 leading-relaxed font-medium">Explore shows, podcasts, and video content from the station's rich and diverse lineup.</p>
+              
+              <div className="mt-8 flex items-center text-primary font-black text-sm uppercase tracking-widest opacity-0 group-hover:opacity-100 translate-x-[-10px] group-hover:translate-x-0 transition-all duration-500">
+                Explore More <span className="material-symbols-outlined ml-2 text-base">arrow_forward</span>
+              </div>
             </div>
           </div>
 
