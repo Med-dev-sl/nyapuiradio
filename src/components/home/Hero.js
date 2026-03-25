@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 
+const images = ['/hero1.jpeg', '/hero2.jpeg'];
+
 const Hero = () => {
   const [currentIdx, setCurrentIdx] = useState(0);
   const [nextIdx, setNextIdx] = useState(1);
   const [isAnimating, setIsAnimating] = useState(false);
-
-  const images = ['/hero1.jpeg', '/hero2.jpeg'];
 
   useEffect(() => {
     const interval = setInterval(() => {
