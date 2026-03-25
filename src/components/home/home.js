@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import CenteredLogo from '../common/CenteredLogo';
 import HeaderMenu from './HeaderMenu';
+import Hero from './Hero';
+
 
 const TypewriterEffect = ({ phrases, onFinished }) => {
   const [phraseIndex, setPhraseIndex] = useState(0);
@@ -68,17 +70,9 @@ const Home = () => {
       </header>
       <div className={`transition-all duration-1000 ${showMenu ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}>
         <HeaderMenu />
+        <Hero />
 
         <main className="flex-1 p-8 flex flex-col items-center justify-center gap-12 relative">
-          <div className="max-w-4xl text-center space-y-4">
-            <h2 className="text-5xl md:text-6xl font-black mb-4 tracking-tight">
-              Welcome to <span className="text-primary">Nyapui Radio</span>
-            </h2>
-            <p className="text-xl text-slate-600 dark:text-slate-300 max-w-2xl mx-auto font-medium">
-              Voice of the community, empowering local and international stories through music, news, events, and more.
-            </p>
-          </div>
-
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-6xl">
             <div className="p-8 bg-white dark:bg-slate-900/50 backdrop-blur-sm border border-slate-200 dark:border-primary/20 rounded-[2rem] shadow-sm hover:shadow-xl hover:shadow-primary/5 transition-all group overflow-hidden relative">
               <div className="absolute top-0 right-0 size-24 bg-primary/5 dark:bg-primary/10 rounded-full blur-2xl -mr-8 -mt-8 group-hover:bg-primary/20 transition-all" />
