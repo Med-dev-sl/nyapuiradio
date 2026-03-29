@@ -19,7 +19,7 @@
     "sqlite3": "^5.1.7",
     "web-vitals": "^2.1.4"
   },
-  "proxy": "http://localhost:5001",
+  "proxy": "http://localhost:5000",
   "scripts": {
     "start": "react-scripts start",
     "server": "node backend/server.js",
