@@ -56,7 +56,7 @@ const Programs = () => {
             const parsed = JSON.parse(days);
             if (Array.isArray(parsed)) return parsed.join(', ');
         } catch (e) {
-            return days.replace(/[\[\]"]/g, ''); // Basic cleanup for stringified array
+            return days.replace(/[[\]"]/g, ''); // Basic cleanup for stringified array
         }
     }
     return days;
