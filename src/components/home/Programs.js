@@ -33,7 +33,7 @@ const Programs = () => {
           setIsVisible(true);
         }
       },
-      { threshold: 0.1 }
+      { threshold: 0.05 }
     );
 
     const currentSectionRef = sectionRef.current;
@@ -89,7 +89,7 @@ const Programs = () => {
   return (
     <section 
       ref={sectionRef} 
-      className="w-full max-w-7xl mx-auto py-24 px-8 overflow-x-hidden relative"
+      className="w-full max-w-7xl mx-auto py-24 px-8 overflow-x-hidden relative min-h-[600px]"
       id="programs-section"
     >
       <div className={`transition-all duration-1000 transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-20 opacity-0'}`}>
