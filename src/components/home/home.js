@@ -3,6 +3,8 @@ import CenteredLogo from '../common/CenteredLogo';
 import HeaderMenu from './HeaderMenu';
 import Hero from './Hero';
 import About from './About';
+import Programs from './Programs';
+
 
 
 
@@ -126,6 +128,8 @@ const Home = () => {
           </div>
 
           <About />
+          <Programs />
+
 
           <div className="w-full max-w-2xl text-center text-sm text-slate-500 dark:text-slate-400 pb-12">
             <p className="px-8 border-l-2 border-primary/30 italic">Explore our content through the mobile or web app experience. Enjoy local and international news, podcasts, and programs.</p>
