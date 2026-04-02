@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import API_URL from '../../config';
 import HeaderMenu from '../home/HeaderMenu';
 import CenteredLogo from '../common/CenteredLogo';
+import ProgramsHero from './hero';
 
 const FullPrograms = () => {
     const [programs, setPrograms] = useState([]);
@@ -83,17 +84,13 @@ const FullPrograms = () => {
     return (
         <div className="min-h-screen bg-background-light dark:bg-background-dark transition-colors duration-500">
             {/* Header Mirroring Homepage Style */}
-            <header className="w-full pt-12 pb-8 border-b border-slate-200 dark:border-primary/20 px-8 flex flex-col items-center justify-center relative overflow-hidden gap-6 bg-white dark:bg-slate-900">
-                <div className="absolute top-0 right-0 size-96 bg-primary/5 blur-[120px] pointer-events-none" />
-                <CenteredLogo className="size-24 md:size-32 relative hover:scale-105 transition-transform duration-500 cursor-pointer" />
-                <div className="text-center">
-                    <h1 className="text-3xl md:text-5xl font-black text-slate-900 dark:text-white uppercase tracking-tight">
-                        Our <span className="text-primary">Program</span> Guide
-                    </h1>
-                </div>
-            </header>
+            <div className="bg-white dark:bg-slate-950 py-4 flex flex-col items-center justify-center border-b border-primary/5">
+                <CenteredLogo className="size-20 md:size-24 cursor-pointer hover:scale-105 transition-transform" />
+            </div>
 
             <HeaderMenu />
+            
+            <ProgramsHero />
 
             <main className="max-w-7xl mx-auto py-24 px-8 relative">
                 <div className={`transition-all duration-1000 transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
