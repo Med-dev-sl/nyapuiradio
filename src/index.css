@@ -116,11 +116,11 @@ code {
 }
 
 /* Hide scrollbars globally but keep scrolling active */
-* {
+* , .custom-scrollbar {
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE, Edge */
 }
 
-*::-webkit-scrollbar {
+*::-webkit-scrollbar, .custom-scrollbar::-webkit-scrollbar {
   display: none; /* Chrome, Safari, and Opera */
 }

@@ -761,7 +761,7 @@ app.post('/api/social/post', authenticate, async (req, res) => {
 // ─── PUBLIC PROGRAMS ROUTES ──────────────────────────────────────────────────
 app.get('/api/public/programs', async (req, res) => {
   try {
-    const rows = await db.all('SELECT * FROM programs WHERE status = "Active" ORDER BY category ASC, start_time ASC;');
+    const rows = await db.all('SELECT * FROM programs ORDER BY category ASC, start_time ASC;');
     const programs = rows.map(r => ({
       ...r,
       days: typeof r.days === 'string' ? JSON.parse(r.days || '[]') : r.days
