@@ -10,16 +10,26 @@ const Programs = () => {
   useEffect(() => {
     const fetchPrograms = async () => {
       try {
-        const response = await fetch(`${API_URL}/api/public/programs`);
+        const fullUrl = `${API_URL}/api/public/programs`;
+        console.log('Fetching programs from:', fullUrl);
+        const response = await fetch(fullUrl);
+        
         if (response.ok) {
           const data = await response.json();
-          // Take only the first 4
-          setPrograms(data.slice(0, 4));
+          console.log('Successfully fetched programs:', data);
+          // Display all fetched programs
+          if (Array.isArray(data)) {
+             console.log('Setting programs state with', data.length, 'items');
+             setPrograms(data);
+          } else {
+             console.warn('Programs API returned non-array data:', data);
+             setPrograms([]);
+          }
         } else {
-          console.error('Failed to fetch programs:', response.status);
+          console.error('Failed to fetch programs:', response.status, response.statusText);
         }
       } catch (error) {
-        console.error('Error fetching programs:', error);
+        console.error('Network Error fetching programs:', error);
       } finally {
         setLoading(false);
       }
@@ -29,11 +39,12 @@ const Programs = () => {
 
     const observer = new IntersectionObserver(
       ([entry]) => {
+        console.log('Programs section visibility changed:', entry.isIntersecting);
         if (entry.isIntersecting) {
           setIsVisible(true);
         }
       },
-      { threshold: 0.05 }
+      { threshold: 0.01, rootMargin: '0px 0px -50px 0px' }
     );
 
     const currentSectionRef = sectionRef.current;
@@ -92,6 +103,7 @@ const Programs = () => {
       className="w-full max-w-7xl mx-auto py-24 px-8 overflow-x-hidden relative min-h-[600px]"
       id="programs-section"
     >
+      {console.log('Rendering Programs component. State:', { loading, count: programs.length, isVisible })}
       <div className={`transition-all duration-1000 transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-20 opacity-0'}`}>
         <h4 className="text-primary font-black uppercase tracking-[0.3em] text-sm mb-4">Our Schedule</h4>
         <h2 className="text-4xl md:text-6xl font-black text-slate-900 dark:text-white leading-tight uppercase tracking-tight mb-16">

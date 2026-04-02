@@ -762,6 +762,7 @@ app.post('/api/social/post', authenticate, async (req, res) => {
 app.get('/api/public/programs', async (req, res) => {
   try {
     const rows = await db.all('SELECT * FROM programs ORDER BY category ASC, start_time ASC;');
+    console.log('[API] Public Programs request. Found programs:', rows.length);
     const programs = rows.map(r => ({
       ...r,
       days: typeof r.days === 'string' ? JSON.parse(r.days || '[]') : r.days
