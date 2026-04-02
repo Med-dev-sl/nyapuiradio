@@ -4,15 +4,10 @@ const images = ['/programs-her01.jpeg', '/programs-hero2.jpeg'];
 
 const ProgramsHero = () => {
     const [currentIdx, setCurrentIdx] = useState(0);
-    const [isAnimating, setIsAnimating] = useState(false);
 
     useEffect(() => {
         const interval = setInterval(() => {
-            setIsAnimating(true);
-            setTimeout(() => {
-                setCurrentIdx((prev) => (prev + 1) % images.length);
-                setIsAnimating(false);
-            }, 1000); // Transition duration
+            setCurrentIdx((prev) => (prev + 1) % images.length);
         }, 5000); // Delay between transitions
 
         return () => clearInterval(interval);
