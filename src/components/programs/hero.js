@@ -1,15 +1,37 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+
+const images = ['/programs-her01.jpeg', '/programs-hero2.jpeg'];
 
 const ProgramsHero = () => {
+    const [currentIdx, setCurrentIdx] = useState(0);
+    const [isAnimating, setIsAnimating] = useState(false);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setIsAnimating(true);
+            setTimeout(() => {
+                setCurrentIdx((prev) => (prev + 1) % images.length);
+                setIsAnimating(false);
+            }, 1000); // Transition duration
+        }, 5000); // Delay between transitions
+
+        return () => clearInterval(interval);
+    }, []);
+
     return (
         <div className="relative w-full h-[400px] md:h-[500px] bg-slate-950 overflow-hidden flex items-center justify-center">
-            {/* Background Image Placeholder */}
+            {/* Background Image Slider */}
             <div className="absolute inset-0 z-0">
-                <img 
-                    src="https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?q=80&w=2070&auto=format&fit=crop" 
-                    alt="Programs Hero Background" 
-                    className="w-full h-full object-cover opacity-30 grayscale hover:grayscale-0 transition-all duration-1000 scale-105"
-                />
+                <div className="relative w-full h-full">
+                    {images.map((img, i) => (
+                        <img 
+                            key={img}
+                            src={img} 
+                            alt={`Programs Hero ${i}`} 
+                            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${i === currentIdx ? 'opacity-30' : 'opacity-0'} grayscale hover:grayscale-0 scale-105`}
+                        />
+                    ))}
+                </div>
                 <div className="absolute inset-0 bg-gradient-to-b from-slate-950/80 via-transparent to-slate-950/90" />
                 <div className="absolute inset-0 bg-gradient-to-r from-slate-950/40 via-transparent to-slate-950/40" />
             </div>
@@ -47,7 +69,16 @@ const ProgramsHero = () => {
                 </div>
             </div>
 
-            {/* Industrial Decor */}
+            {/* Industrial Decor and Slider Indicators */}
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-4">
+                {images.map((_, i) => (
+                    <div 
+                        key={i}
+                        className={`h-1 transition-all duration-500 rounded-full ${i === currentIdx ? 'w-12 bg-primary' : 'w-4 bg-white/20'}`}
+                    />
+                ))}
+            </div>
+
             <div className="absolute bottom-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
             <div className="absolute top-0 right-0 p-12 opacity-5 hidden lg:block">
                 <span className="material-symbols-outlined text-[200px] text-white">podcasts</span>
