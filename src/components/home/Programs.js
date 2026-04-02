@@ -116,11 +116,11 @@ const Programs = () => {
           <p className="text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest text-xs">More programs arriving soon. Stay tuned to Nyapui Radio.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 border-l border-t border-slate-200 dark:border-primary/20">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {(loading ? Array(4).fill({}) : programs).map((program, index) => (
             <div 
               key={program.id || index}
-              className={`group relative bg-white dark:bg-slate-950 border-r border-b border-slate-200 dark:border-primary/10 overflow-hidden rounded-none transition-all duration-1000 transform ${isVisible ? 'translate-x-0 opacity-100' : 'translate-x-[100px] opacity-0'} ${loading ? 'animate-pulse' : ''}`}
+              className={`group relative bg-white dark:bg-slate-950 border border-slate-200 dark:border-primary/10 overflow-hidden rounded-[2rem] shadow-sm hover:shadow-xl hover:shadow-primary/5 transition-all duration-1000 transform ${isVisible ? 'translate-x-0 opacity-100' : 'translate-x-[100px] opacity-0'} ${loading ? 'animate-pulse' : ''}`}
               style={{ 
                 transitionDelay: `${index * 150}ms`,
               }}
