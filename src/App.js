@@ -5,6 +5,7 @@ import Login from './components/superadmin/login';
 import Loading from './components/superadmin/loading';
 import Modal from './components/common/Modal';
 import Home from './components/home/home';
+import FullPrograms from './components/programs/programs';
 import Logo from './components/common/Logo';
 import FABubble from './components/common/FABubble';
 import API_URL from './config';
@@ -12,6 +13,7 @@ import API_URL from './config';
 function App() {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentPath, setCurrentPath] = useState(window.location.pathname);
   const [modal, setModal] = useState({ 
     open: false, 
     type: 'info', 
@@ -175,16 +177,33 @@ function App() {
   const handleLogin = (userData) => {
     setUser(userData);
     if (!window.location.pathname.startsWith('/superadmin')) {
-      window.history.replaceState({}, '', '/superadmin');
+      window.history.pushState({}, '', '/superadmin');
+      setCurrentPath('/superadmin');
     }
   };
 
-  const isSuperadminRoute = window.location.pathname.startsWith('/superadmin');
+  useEffect(() => {
+    const handleLocationChange = () => {
+      setCurrentPath(window.location.pathname);
+    };
+
+    window.addEventListener('popstate', handleLocationChange);
+    // Custom event listener for internal nagivation
+    window.addEventListener('navigate', handleLocationChange);
+
+    return () => {
+      window.removeEventListener('popstate', handleLocationChange);
+      window.removeEventListener('navigate', handleLocationChange);
+    };
+  }, []);
+
+  const isSuperadminRoute = currentPath.startsWith('/superadmin');
+  const isProgramsRoute = currentPath === '/programs';
 
   if (!isSuperadminRoute) {
     return (
       <>
-        <Home />
+        {isProgramsRoute ? <FullPrograms /> : <Home />}
         <FABubble />
       </>
     );

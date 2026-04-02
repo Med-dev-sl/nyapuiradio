@@ -17,10 +17,10 @@ const Programs = () => {
         if (response.ok) {
           const data = await response.json();
           console.log('Successfully fetched programs:', data);
-          // Display all fetched programs
+          // Display only the first 4 programs on the homepage
           if (Array.isArray(data)) {
-             console.log('Setting programs state with', data.length, 'items');
-             setPrograms(data);
+             console.log('Setting programs state with top 4 items');
+             setPrograms(data.slice(0, 4));
           } else {
              console.warn('Programs API returned non-array data:', data);
              setPrograms([]);

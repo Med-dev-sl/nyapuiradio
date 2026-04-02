@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 
 const HeaderMenu = () => {
-  const [active, setActive] = useState('Home');
+  const initialItem = window.location.pathname === '/programs' ? 'Programs' : 'Home';
+  const [active, setActive] = useState(initialItem);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [newsOpen, setNewsOpen] = useState(false);
 
@@ -16,6 +17,13 @@ const HeaderMenu = () => {
       setActive(item);
       setNewsOpen(false);
       if (mobileOpen) setMobileOpen(false);
+      
+      // SPA Navigation logic
+      const targetPath = item === 'Home' ? '/' : `/${item.toLowerCase()}`;
+      if (window.location.pathname !== targetPath) {
+        window.history.pushState({}, '', targetPath);
+        window.dispatchEvent(new Event('navigate'));
+      }
     }
   };
 
