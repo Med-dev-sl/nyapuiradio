@@ -23,7 +23,7 @@ const ProgramsHero = () => {
                             key={img}
                             src={img} 
                             alt={`Programs Hero ${i}`} 
-                            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${i === currentIdx ? 'opacity-30' : 'opacity-0'} grayscale hover:grayscale-0 scale-105`}
+                            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${i === currentIdx ? 'opacity-70' : 'opacity-0'} grayscale hover:grayscale-0 scale-105`}
                         />
                     ))}
                 </div>
