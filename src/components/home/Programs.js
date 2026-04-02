@@ -203,6 +203,28 @@ const Programs = () => {
         </div>
       )}
       
+      {/* Bottom CTA for Full Programs Guide */}
+      {!loading && programs.length > 0 && (
+        <div className={`mt-20 flex justify-center transition-all duration-1000 delay-500 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
+          <button 
+            onClick={() => {
+              window.history.pushState({}, '', '/programs');
+              window.dispatchEvent(new Event('navigate'));
+              window.scrollTo(0, 0);
+            }}
+            className="group relative px-10 py-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-primary/20 rounded-2xl overflow-hidden shadow-sm hover:shadow-2xl hover:shadow-primary/20 transition-all duration-500"
+          >
+            <div className="absolute inset-0 bg-primary translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
+            <div className="relative flex items-center gap-4 text-slate-900 dark:text-white group-hover:text-white font-black uppercase tracking-widest text-xs transition-colors duration-500">
+              Explore Full Program Guide
+              <span className="material-symbols-outlined transform group-hover:translate-x-2 transition-transform duration-500">
+                arrow_forward
+              </span>
+            </div>
+          </button>
+        </div>
+      )}
+      
       {/* Background Text - Positioned carefully to avoid horizontal scroll */}
       <div className={`absolute right-0 bottom-4 text-9xl font-black text-slate-100 dark:text-white/[0.02] pointer-events-none transition-all duration-[2000ms] leading-none select-none ${isVisible ? 'translate-x-1/4 opacity-100' : 'translate-x-full opacity-0'}`}>
         PROGRAMS
