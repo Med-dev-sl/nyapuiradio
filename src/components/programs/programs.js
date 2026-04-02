@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import API_URL from '../../config';
 import HeaderMenu from '../home/HeaderMenu';
 import CenteredLogo from '../common/CenteredLogo';
@@ -7,7 +7,6 @@ const FullPrograms = () => {
     const [programs, setPrograms] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isVisible, setIsVisible] = useState(false);
-    const sectionRef = useRef(null);
 
     useEffect(() => {
         // Scroll to top on mount
