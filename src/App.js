@@ -8,6 +8,7 @@ import Home from './components/home/home';
 import FullPrograms from './components/programs/programs';
 import Logo from './components/common/Logo';
 import FABubble from './components/common/FABubble';
+import Footer from './components/footer';
 import API_URL from './config';
 
 function App() {
@@ -202,10 +203,13 @@ function App() {
 
   if (!isSuperadminRoute) {
     return (
-      <>
-        {isProgramsRoute ? <FullPrograms /> : <Home />}
+      <div className="flex flex-col min-h-screen">
+        <div className="flex-grow">
+          {isProgramsRoute ? <FullPrograms /> : <Home />}
+        </div>
+        <Footer />
         <FABubble />
-      </>
+      </div>
     );
   }
 
