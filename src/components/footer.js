@@ -31,8 +31,8 @@ const Footer = () => {
   };
 
   return (
-    <footer className="w-full bg-blue-600 text-white animate-slideUp border-t-4 border-primary relative overflow-hidden mt-auto">
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-blue-700 to-blue-600 opacity-90 pointer-events-none"></div>
+    <footer className="w-full bg-primary text-white animate-slideUp border-t-4 border-orange-700 relative overflow-hidden mt-auto">
+      <div className="absolute inset-0 bg-gradient-to-br from-primary via-orange-600 to-primary opacity-90 pointer-events-none"></div>
       
       <div className="mx-auto max-w-6xl px-4 py-12 md:px-8 relative z-10">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-10">
@@ -40,20 +40,20 @@ const Footer = () => {
           {/* Brand Info */}
           <div className="flex flex-col gap-4">
             <div className="flex items-center gap-3">
-              <img src="/footer-logo.png" alt="Nyapui Radio Logo" className="h-12 w-auto hover:scale-105 transition-transform duration-300 bg-white/10 rounded px-2" />
+              <img src="/footer-logo.png" alt="Nyapui Radio Logo" className="h-12 w-auto hover:scale-105 transition-transform duration-300 bg-white/20 rounded px-2" />
               <h2 className="text-2xl font-bold bg-white bg-clip-text text-transparent transform transition-transform hover:scale-105 cursor-pointer">
                 Nyapui Radio
               </h2>
             </div>
-            <p className="text-sm text-blue-100 leading-relaxed max-w-xs drop-shadow-sm">
-              Your voice, your station. Search <span className="font-semibold text-white">@nyapuiradio</span> on all platforms to connect with us.
+            <p className="text-sm text-orange-50 leading-relaxed max-w-xs drop-shadow-sm">
+              Your voice, your station. Search <span className="font-bold text-white">@nyapuiradio</span> on all platforms to connect with us.
             </p>
           </div>
 
           {/* Quick Links */}
           <div className="flex flex-col gap-4">
-            <h3 className="text-lg font-semibold border-b border-blue-400 pb-2 w-max text-white drop-shadow-sm">Quick Links</h3>
-            <ul className="flex flex-col gap-2 text-sm text-blue-100">
+            <h3 className="text-lg font-semibold border-b border-orange-400/50 pb-2 w-max text-white drop-shadow-sm">Quick Links</h3>
+            <ul className="flex flex-col gap-2 text-sm text-orange-50">
               {quickLinks.map((link) => (
                 <li key={link.name}>
                   <a 
@@ -73,7 +73,7 @@ const Footer = () => {
 
           {/* Social Links */}
           <div className="flex flex-col gap-4">
-            <h3 className="text-lg font-semibold border-b border-blue-400 pb-2 w-max text-white drop-shadow-sm">Follow Us</h3>
+            <h3 className="text-lg font-semibold border-b border-orange-400/50 pb-2 w-max text-white drop-shadow-sm">Follow Us</h3>
             <div className="flex flex-wrap gap-3">
               {socialLinks.map((link) => (
                 <a
@@ -81,11 +81,11 @@ const Footer = () => {
                   href={link.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="group relative flex h-10 w-10 items-center justify-center rounded-full bg-blue-700 border border-blue-500 hover:bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-blue-900/40"
+                  className="group relative flex h-10 w-10 items-center justify-center rounded-full bg-orange-700 border border-orange-500 hover:bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-orange-900/40"
                   aria-label={link.name}
                   title={`@nyapuiradio on ${link.name}`}
                 >
-                  <span className="material-symbols-outlined text-[20px] text-blue-50 group-hover:text-blue-600 transition-colors">
+                  <span className="material-symbols-outlined text-[20px] text-orange-50 group-hover:text-primary transition-colors">
                     {link.icon}
                   </span>
                 </a>
@@ -95,18 +95,18 @@ const Footer = () => {
 
           {/* Contact Info */}
           <div className="flex flex-col gap-4">
-            <h3 className="text-lg font-semibold border-b border-blue-400 pb-2 w-max text-white drop-shadow-sm">Contact Us</h3>
-            <ul className="flex flex-col gap-3 text-sm text-blue-100">
+            <h3 className="text-lg font-semibold border-b border-orange-400/50 pb-2 w-max text-white drop-shadow-sm">Contact Us</h3>
+            <ul className="flex flex-col gap-3 text-sm text-orange-50">
               <li className="flex items-center gap-3 group">
-                <span className="material-symbols-outlined text-[18px] text-blue-200 group-hover:text-white group-hover:scale-110 transition-transform">mail</span>
+                <span className="material-symbols-outlined text-[18px] text-orange-200 group-hover:text-white group-hover:scale-110 transition-transform">mail</span>
                 <a href="mailto:info@nyapuiradio.com" className="hover:text-white transition-colors">info@nyapuiradio.com</a>
               </li>
               <li className="flex items-center gap-3 group">
-                <span className="material-symbols-outlined text-[18px] text-blue-200 group-hover:text-white group-hover:scale-110 transition-transform">language</span>
+                <span className="material-symbols-outlined text-[18px] text-orange-200 group-hover:text-white group-hover:scale-110 transition-transform">language</span>
                 <a href="https://www.nyapuiradio.com" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">www.nyapuiradio.com</a>
               </li>
               <li className="flex items-center gap-3 group">
-                <span className="material-symbols-outlined text-[18px] text-blue-200 group-hover:text-white group-hover:scale-110 transition-transform">phone</span>
+                <span className="material-symbols-outlined text-[18px] text-orange-200 group-hover:text-white group-hover:scale-110 transition-transform">phone</span>
                 <a href="tel:+23276106106" className="hover:text-white transition-colors">+232 76 106106</a>
               </li>
             </ul>
@@ -114,7 +114,7 @@ const Footer = () => {
           
         </div>
         
-        <div className="mt-12 border-t border-blue-500 pt-6 flex flex-col md:flex-row justify-between items-center text-xs text-blue-200 gap-4">
+        <div className="mt-12 border-t border-orange-500/50 pt-6 flex flex-col md:flex-row justify-between items-center text-xs text-orange-100 gap-4">
           <p>&copy; {new Date().getFullYear()} Nyapui Radio. All Rights Reserved.</p>
           <div className="flex gap-4">
             <a href="/privacy" className="hover:text-white transition-colors">Privacy Policy</a>
