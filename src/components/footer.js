@@ -40,7 +40,7 @@ const Footer = () => {
           {/* Brand Info */}
           <div className="flex flex-col gap-4">
             <div className="flex items-center gap-3">
-              <img src="/footer-logo.png" alt="Nyapui Radio Logo" className="h-12 w-auto hover:scale-105 transition-transform duration-300 bg-white/20 rounded px-2" />
+              <img src="/footer-logo.png" alt="Nyapui Radio Logo" className="h-24 sm:h-32 w-auto hover:scale-105 transition-transform duration-300 bg-white/20 rounded px-3 py-1 shadow-sm" />
               <h2 className="text-2xl font-bold bg-white bg-clip-text text-transparent transform transition-transform hover:scale-105 cursor-pointer">
                 Nyapui Radio
               </h2>
@@ -59,9 +59,9 @@ const Footer = () => {
                   <a 
                     href={link.path}
                     onClick={(e) => handleNavigation(e, link.path)}
-                    className="hover:text-white hover:font-medium transition-all flex items-center gap-1 group"
+                    className="hover:text-blue-900 hover:font-medium transition-all flex items-center gap-1 group"
                   >
-                    <span className="material-symbols-outlined text-[14px] opacity-0 -ml-4 group-hover:opacity-100 group-hover:ml-0 transition-all duration-300 text-white">
+                    <span className="material-symbols-outlined text-[14px] opacity-0 -ml-4 group-hover:opacity-100 group-hover:ml-0 transition-all duration-300 text-white group-hover:text-blue-900">
                       arrow_right
                     </span>
                     {link.name}
@@ -81,11 +81,11 @@ const Footer = () => {
                   href={link.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="group relative flex h-10 w-10 items-center justify-center rounded-full bg-orange-700 border border-orange-500 hover:bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-orange-900/40"
+                  className="group relative flex h-10 w-10 items-center justify-center rounded-full bg-orange-700 border border-orange-500 hover:bg-blue-900 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-blue-900/40"
                   aria-label={link.name}
                   title={`@nyapuiradio on ${link.name}`}
                 >
-                  <span className="material-symbols-outlined text-[20px] text-orange-50 group-hover:text-primary transition-colors">
+                  <span className="material-symbols-outlined text-[20px] text-orange-50 group-hover:text-white transition-colors">
                     {link.icon}
                   </span>
                 </a>
@@ -98,16 +98,16 @@ const Footer = () => {
             <h3 className="text-lg font-semibold border-b border-orange-400/50 pb-2 w-max text-white drop-shadow-sm">Contact Us</h3>
             <ul className="flex flex-col gap-3 text-sm text-orange-50">
               <li className="flex items-center gap-3 group">
-                <span className="material-symbols-outlined text-[18px] text-orange-200 group-hover:text-white group-hover:scale-110 transition-transform">mail</span>
-                <a href="mailto:info@nyapuiradio.com" className="hover:text-white transition-colors">info@nyapuiradio.com</a>
+                <span className="material-symbols-outlined text-[18px] text-orange-200 group-hover:text-blue-900 group-hover:scale-110 transition-transform">mail</span>
+                <a href="mailto:info@nyapuiradio.com" className="hover:text-blue-900 transition-colors">info@nyapuiradio.com</a>
               </li>
               <li className="flex items-center gap-3 group">
-                <span className="material-symbols-outlined text-[18px] text-orange-200 group-hover:text-white group-hover:scale-110 transition-transform">language</span>
-                <a href="https://www.nyapuiradio.com" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">www.nyapuiradio.com</a>
+                <span className="material-symbols-outlined text-[18px] text-orange-200 group-hover:text-blue-900 group-hover:scale-110 transition-transform">language</span>
+                <a href="https://www.nyapuiradio.com" target="_blank" rel="noopener noreferrer" className="hover:text-blue-900 transition-colors">www.nyapuiradio.com</a>
               </li>
               <li className="flex items-center gap-3 group">
-                <span className="material-symbols-outlined text-[18px] text-orange-200 group-hover:text-white group-hover:scale-110 transition-transform">phone</span>
-                <a href="tel:+23276106106" className="hover:text-white transition-colors">+232 76 106106</a>
+                <span className="material-symbols-outlined text-[18px] text-orange-200 group-hover:text-blue-900 group-hover:scale-110 transition-transform">phone</span>
+                <a href="tel:+23276106106" className="hover:text-blue-900 transition-colors">+232 76 106106</a>
               </li>
             </ul>
           </div>
@@ -117,8 +117,8 @@ const Footer = () => {
         <div className="mt-12 border-t border-orange-500/50 pt-6 flex flex-col md:flex-row justify-between items-center text-xs text-orange-100 gap-4">
           <p>&copy; {new Date().getFullYear()} Nyapui Radio. All Rights Reserved.</p>
           <div className="flex gap-4">
-            <a href="/privacy" className="hover:text-white transition-colors">Privacy Policy</a>
-            <a href="/terms" className="hover:text-white transition-colors">Terms of Service</a>
+            <a href="/privacy" className="hover:text-blue-900 transition-colors">Privacy Policy</a>
+            <a href="/terms" className="hover:text-blue-900 transition-colors">Terms of Service</a>
           </div>
         </div>
       </div>
