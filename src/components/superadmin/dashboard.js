@@ -4786,7 +4786,7 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
                                 </div>
                              </div>
                              <div className="divide-y divide-primary/5">
-                                {systemUsers.filter(u => u.username.toLowerCase().includes(userSearch.toLowerCase()) || u.full_name?.toLowerCase().includes(userSearch.toLowerCase())).map(u => (
+                                {systemUsers.filter(u => u.username.toLowerCase().includes(userSearch.toLowerCase()) || u.full_name?.toLowerCase().includes(userSearch.toLowerCase()) || u.user_email?.toLowerCase().includes(userSearch.toLowerCase())).map(u => (
                                    <button 
                                       key={u.id}
                                       onClick={() => {
@@ -4807,6 +4807,7 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
                                            </span>
                                            <span className="text-[10px] text-slate-400 truncate">@{u.username}</span>
                                          </div>
+                                         {u.user_email && <p className="text-[10px] text-slate-400 truncate mt-0.5">{u.user_email}</p>}
                                       </div>
                                       <div onClick={(e) => { e.stopPropagation(); handleUserDelete(u.id); }} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all">
                                          <span className="material-symbols-outlined text-sm">delete</span>
@@ -4845,6 +4846,12 @@ const Dashboard = ({ user, onLogout, onUpdateProfile }) => {
                                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Official Full Name</label>
                                         <input type="text" value={userForm.full_name} onChange={(e) => setUserForm(p => ({ ...p, full_name: e.target.value }))} className="w-full bg-slate-50 dark:bg-slate-800/50 border-none rounded-2xl px-5 py-4 text-sm focus:ring-2 focus:ring-primary/20 font-bold" placeholder="e.g. John Doe" />
                                      </div>
+                                     <div className="space-y-2">
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Email Address</label>
+                                        <input type="email" value={userForm.user_email} onChange={(e) => setUserForm(p => ({ ...p, user_email: e.target.value }))} className="w-full bg-slate-50 dark:bg-slate-800/50 border-none rounded-2xl px-5 py-4 text-sm focus:ring-2 focus:ring-primary/20 font-bold" placeholder="e.g. john.doe@example.com" />
+                                     </div>
+                                  </div>
+                                  <div className="px-2 mt-8">
                                      <div className="space-y-2">
                                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">System Role</label>
                                         <select value={userForm.role} onChange={(e) => setUserForm(p => ({ ...p, role: e.target.value }))} className="w-full bg-slate-50 dark:bg-slate-800/50 border-none rounded-2xl px-5 py-4 text-sm focus:ring-2 focus:ring-primary/20 font-black cursor-pointer">
