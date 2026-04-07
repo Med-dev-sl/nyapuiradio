@@ -4,10 +4,13 @@ const bodyParser = require('body-parser');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const db = require('./db');
+const { Resend } = require('resend');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || 'replace_with_a_better_secret';
+const RESEND_API_KEY = 're_JKaD4oTP_CirqsR3emGvvdgJ37dTyUJtb';
+const resend = new Resend(RESEND_API_KEY);
 
 // Audit Logging Utility
 const logAction = async (userId, action, details = '', targetType = null, targetId = null) => {
@@ -23,6 +26,41 @@ const logAction = async (userId, action, details = '', targetType = null, target
 
 function hashPassword(password) {
   return crypto.createHash('sha256').update(password).digest('hex');
+}
+
+async function sendUserCreationEmail(email, username, password) {
+  try {
+    const { data, error } = await resend.emails.send({
+      from: 'Nyapui Radio <noreply@connectsierraleone.com>',
+      to: [email],
+      subject: 'Your Nyapui Radio Account Has Been Created',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #333;">Welcome to Nyapui Radio!</h2>
+          <p>Your account has been successfully created. Here are your login credentials:</p>
+          <div style="background-color: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px 0;">
+            <p><strong>Username:</strong> ${username}</p>
+            <p><strong>Password:</strong> ${password}</p>
+          </div>
+          <p>You can access the Superadmin Dashboard by clicking the link below:</p>
+          <a href="https://connectsierraleone.com/superadmin" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 20px 0;">Access Superadmin Dashboard</a>
+          <p style="color: #666; font-size: 14px;">Please change your password after your first login for security purposes.</p>
+          <p style="color: #666; font-size: 14px;">If you have any questions, please contact support.</p>
+        </div>
+      `,
+    });
+
+    if (error) {
+      console.error('Error sending email:', error);
+      return false;
+    }
+
+    console.log('Email sent successfully:', data);
+    return true;
+  } catch (err) {
+    console.error('Failed to send email:', err);
+    return false;
+  }
 }
 
 function authenticate(req, res, next) {
@@ -179,6 +217,15 @@ app.post('/api/users', authenticate, async (req, res) => {
     );
 
     await logAction(req.userId, 'CREATE_USER', `Created user: ${username} (${role})`, 'user', result.lastID);
+
+    // Send email notification if email is provided
+    if (user_email) {
+      const emailSent = await sendUserCreationEmail(user_email, username, password);
+      if (!emailSent) {
+        console.warn(`Failed to send email to ${user_email} for user ${username}`);
+      }
+    }
+
     res.status(201).json({ id: result.lastID, username, role });
   } catch (err) {
     console.error('POST /api/users error', err);
